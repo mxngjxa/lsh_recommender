@@ -1,13 +1,16 @@
 #import libraries
+import nltk
+nltk.download('stopwords') 
+
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-from datasketch import MinHash
+from datasketch import MinHash, MinHashLSH
 import numpy as np
 from optimal_br import OptimalBR
 
 lem = WordNetLemmatizer()
-stop_words = set(stopwords.words('english'))
+stop_words = set(stopwords.words('english')) 
 
 class recommendation_system:
     
@@ -16,6 +19,7 @@ class recommendation_system:
         self.preprocessed = None
         self.k = None
         self.shingled = None
+
 
     def __repr__(self):
         if not self.preprocessed:
@@ -26,6 +30,7 @@ class recommendation_system:
             return f"Shingled into {self.k} shingles. Awaiting processing."
         else:
             return f"Processed and indexed. Ready for recommendation."
+
 
     def preprocess(self):
         #tokenize words
@@ -47,6 +52,7 @@ class recommendation_system:
         self.processed = lemmatized
         print("Processing Complete, please apply shingling function.")
     
+
     #transform document into shingles
     def shingle(self, k: int):
         self.k = k
@@ -68,18 +74,6 @@ class recommendation_system:
             hash_values = minhash.digest()
             self.signature_matrix[i] = hash_values
 
-
-        def minhash_processing(self, permutations: int):
-            num_shingles = len(self.shingled_data)
-            self.signature_matrix = np.full((num_shingles, permutations), np.inf)
-
-            for i, shingle in enumerate(shingled_data):
-                minhash = MinHash(num_perm=permutations)
-                for token in shingle:
-                    minhash.update(token.encode('utf8'))
-                hash_values = minhash.digest()
-                self.signature_matrix[i] = hash_values
-        
 
     def unnamed_function_to_be_defined(self, other, *args):
         if len(args) == 1:

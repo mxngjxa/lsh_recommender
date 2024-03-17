@@ -1,3 +1,4 @@
 datasketch
 nltk
 numpy
+scipy
