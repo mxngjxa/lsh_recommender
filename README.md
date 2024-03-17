@@ -1,4 +1,4 @@
-# Recommendation System Readme
+# Recommendation System
 
 This recommendation system package is designed to preprocess input text, create indices, compute minHash values, and provide similarity-based recommendations using the 20 Newsgroups dataset.
 
