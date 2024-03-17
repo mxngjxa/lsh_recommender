@@ -1,0 +1,17 @@
+Metadata-Version: 2.1
+Name: lsh-recommender
+Version: 0.0.1
+Summary: LSH Recommendation System Package
+Author: Mingjia Guan
+Author-email: mguan@stu.feitian.edu
+Keywords: python,recommendation system,LSH
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Education
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Operating System :: MacOS :: MacOS X
+License-File: LICENSE
+Requires-Dist: datasketch
+Requires-Dist: nltk
+Requires-Dist: numpy
+
+A Python package implementing a Locality Sensitive Hashing (LSH) recommendation system.
