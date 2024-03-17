@@ -1,7 +1,4 @@
 #import libraries
-import nltk
-nltk.download('stopwords') 
-
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
@@ -10,7 +7,11 @@ import numpy as np
 from optimal_br import OptimalBR
 
 lem = WordNetLemmatizer()
-stop_words = set(stopwords.words('english')) 
+
+#stopwords set as english, change language as needed
+LANGUAGE = "english"
+with open(f"stopwords/{LANGUAGE}", "r") as file:
+    stop_words = set(file.read().split())
 
 class recommendation_system:
     
@@ -73,26 +74,53 @@ class recommendation_system:
                 minhash.update(token.encode('utf8'))
             hash_values = minhash.digest()
             self.signature_matrix[i] = hash_values
+        
+        print("Minhashing processing complete, proceed to LSH.")
 
 
-    def unnamed_function_to_be_defined(self, other, *args):
+    def lsh(self, *args):
         if len(args) == 1:
-            # If two parameters are passed, assume it is "n"
-            n = args
+            # If one parameter is passed, assume it is "n" (total number of permutations)
+            n = args[0]
+            # Compute optimal b and r based on n
             self.b, self.r = OptimalBR.compute_optimal_br(n)
-
         elif len(args) == 2:
             # If two parameters are passed, assume they are 'b' and 'r'
             self.b, self.r = args
-            
         else:
             # Handle the case where an invalid number of parameters is passed
             raise ValueError("Invalid number of parameters. Expected 1 or 2.")
 
-        
+        # Apply LSH to the current dataset
+        self.compute_lsh_buckets()
 
-        
-    
+    def compute_lsh_buckets(self):
+        if self.signature_matrix is None:
+            raise ValueError("Signature matrix is not initialized.")
 
+        num_shingles, num_permutations = self.signature_matrix.shape
+        self.lsh_buckets = {}
 
-    
+        for i in range(num_shingles):
+            buckets = {}
+            signature = self.signature_matrix[i]
+
+            for band_index in range(self.b):
+                band_hash_values = [hash(signature[column_index:column_index + self.r]) for column_index in range(num_permutations - self.r + 1)]
+                band_key = hashlib.sha256(bytes(band_hash_values)).hexdigest()
+
+                if band_key in buckets:
+                    buckets[band_key].add(i)
+                else:
+                    buckets[band_key] = {i}
+
+            self.lsh_buckets[i] = buckets
+
+    def index(self, article_id, signature):
+        if self.signature_matrix is None:
+            raise ValueError("Signature matrix is not initialized.")
+
+        if article_id >= len(self.signature_matrix):
+            raise ValueError("Article ID exceeds signature matrix size.")
+
+        self.signature_matrix[article_id] = signature
