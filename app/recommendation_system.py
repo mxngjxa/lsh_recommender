@@ -53,21 +53,32 @@ class recommendation_system:
         shingles = list()
         for i in range(0, len(self.preprocessed) - self.k):
             shingles.append(self.preprocessed[i:i+self.k])
-        self.shingled = tuple(shingles)
+        self.shingled_data = tuple(shingles)
         print(f"Shingling complete with {self.k} tokens/shingle.")
 
     
-    def process(self, permutations: int):
-        #initialize parameters
+    def minhash_processing(self, permutations: int):
         self.permutations = permutations
-        self.signature_matrix = np.full((len(self.shingled), self.p), np.inf)
-        minhash = Minhash(num_perm = self.p)
+        self.signature_matrix = np.full((len(self.shingled_data), self.permutations), np.inf)
 
-        #compute minhash matrix
-        for i, shingle in enumerate(self.shingled):
-            for j, perm in enumerate(self.permutations):
-                minhash.update(perm.encode('utf8'))
-                self.signature_matrix[i][j] = minhash.jaccard(self.signature_matrix[i])
+        for i, shingle in enumerate(self.shingled_data):
+            minhash = MinHash(num_perm=self.permutations)
+            for token in shingle:
+                minhash.update(token.encode('utf8'))
+            hash_values = minhash.digest()
+            self.signature_matrix[i] = hash_values
+
+
+        def minhash_processing(self, permutations: int):
+            num_shingles = len(self.shingled_data)
+            self.signature_matrix = np.full((num_shingles, permutations), np.inf)
+
+            for i, shingle in enumerate(shingled_data):
+                minhash = MinHash(num_perm=permutations)
+                for token in shingle:
+                    minhash.update(token.encode('utf8'))
+                hash_values = minhash.digest()
+                self.signature_matrix[i] = hash_values
         
 
     def unnamed_function_to_be_defined(self, other, *args):
