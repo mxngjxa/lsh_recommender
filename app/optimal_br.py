@@ -17,9 +17,8 @@ class OptimalBR:
         b, r = params
         if b * r > 128:
             return 1000  # Penalize if b * r > 128
-        threshold = 0.5  # Assuming threshold for similarity
-        error = OptimalBR.false_positive_probability(threshold, b, r) * 0.2 + OptimalBR.false_negative_probability(
-            threshold, b, r) * 0.8
+        threshold = 0.8  # Assuming threshold for similarity
+        error = OptimalBR.false_positive_probability(threshold, b, r) * 0.2 + OptimalBR.false_negative_probability(threshold, b, r) * 0.8
         return error
 
     def compute_optimal_br(n):
