@@ -1,6 +1,8 @@
+# lsh_recommender/__init__.py
+import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import quad as integrate
-import numpy as np
+    
 
 class OptimalBR:
     def false_positive_probability(threshold, b, r):

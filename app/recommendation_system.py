@@ -1,10 +1,18 @@
 import hashlib
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 import numpy as np
 from nltk.tokenize import word_tokenize
 from datasketch import MinHash, MinHashLSH
 from optimal_br import OptimalBR
-from lsh_recommender import lem, stop_words
 
+lem = WordNetLemmatizer()
+
+nltk.download('stopwords')
+nltk.download('wordnet')
+nltk.download('punkt')
+stop_words = set(stopwords.words('english'))
 
 class recommendation_system:
     
@@ -27,7 +35,6 @@ class recommendation_system:
             return f"Shingled into {self.k} shingles. Awaiting processing."
         else:
             return f"Processed and indexed. Ready for recommendation."
-
 
     def preprocess(self):
         #tokenize words
@@ -71,6 +78,8 @@ class recommendation_system:
             self.signature_matrix[i] = hash_values
         
         print("Minhashing processing complete, proceed to LSH.")
+        # print signature matrix
+        #print("signature_matrix", self.signature_matrix)
 
 
     def lsh(self, *args):
@@ -89,6 +98,7 @@ class recommendation_system:
         self.b, self.r = int(self.b), int(self.r)
         # Apply LSH to the current dataset
         self.compute_lsh_buckets()
+        print(self.lsh_buckets)
 
     def compute_lsh_buckets(self):
         if self.signature_matrix is None:
@@ -153,8 +163,8 @@ class recommendation_system:
             signature = text_input_signature[i]
 
             for band_index in range(self.b):
-                band_hash_values = [hash(signature[column_index:column_index + self.r]) for column_index in range(num_permutations - self.r)]
-                band_key = hashlib.sha256(bytes(band_hash_values)).hexdigest()
+                band_hash_values = [hashlib.sha256(bytes(signature[column_index:column_index + self.r])).digest() for column_index in range(num_permutations - self.r)]
+                band_key = hashlib.sha256(b"".join(band_hash_values)).hexdigest()
 
                 if band_key in buckets:
                     buckets[band_key].add(i)
@@ -162,6 +172,8 @@ class recommendation_system:
                     buckets[band_key] = {i}
 
             query_lsh_buckets[i] = buckets
+        
+        print("query_lsh_buckets", query_lsh_buckets)
 
         # Find candidates using LSH
         candidates = self.find_candidates(query_lsh_buckets)
@@ -176,10 +188,12 @@ class recommendation_system:
 
         # Iterate over each item in the large dataset LSH buckets
         for key, buckets in self.lsh_buckets.items():
+            print("1\n", key, buckets)
             # Iterate over each bucket in the large dataset LSH buckets
             for band_key, bucket in buckets.items():
+                print("2\n", band_key, bucket)
                 # Compute Jaccard similarity between the query MinHash and the MinHash of the current item
-                jaccard_similarity = bucket.jaccard(item_minhash)
+                jaccard_similarity = band_key.jaccard(item_minhash)
 
                 # Add the item ID and its Jaccard similarity to the candidates dictionary
                 if key in candidates:
