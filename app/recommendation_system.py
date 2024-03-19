@@ -1,4 +1,5 @@
 import hashlib
+import re
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -6,6 +7,7 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 from datasketch import MinHash, MinHashLSH
 from optimal_br import OptimalBR
+
 
 lem = WordNetLemmatizer()
 
@@ -18,9 +20,9 @@ class recommendation_system:
     
     def __init__(self, raw_data):
         self.raw_data = raw_data
-        self.indexed_raw_data = {}
+        self.index_data = []
         for i, value in enumerate(self.raw_data):
-            self.indexed_raw_data[i] = value 
+            self.index_data.append([i, value.split()])
         self.preprocessed = None
         self.k = None
         self.shingled = None
@@ -37,22 +39,17 @@ class recommendation_system:
             return f"Processed and indexed. Ready for recommendation."
 
     def preprocess(self):
-        #tokenize words
-        tokenized = [word.lower() for word in self.raw_data]
-        print("Tokenization Complete")
-
-        #remove non-ascii characters
-        ascii_filtered = ''.join([x for x in tokenized if x.isascii()])
-
-        #remove stopwords
-        stopwords_removed = [w for w in ascii_filtered if w not in stop_words]
-        print("Stopwords Removed")
-
-        #lemmatization
-        lemmatized = [lem.lemmatize(w) for w in stopwords_removed]
-        print("Lemmatization Complete.")
-
-        self.preprocessed = lemmatized
+        #remove non-alphabetical characters
+        data = self.index_data
+        for i in range(len(data)):
+            for j in range(len(data[i][1])):
+                data[i][1][j] = re.sub(r'\W+', '', data[i][1][j])
+            #stopword removed
+            data[i][1] = [w for w in data[i][1] if w not in stop_words]
+            #lemmatized
+            data[i][1] = [lem.lemmatize(w) for w in data[i][1]]
+            
+        self.preprocessed = data
         print("Processing Complete, please apply shingling function.")
     
 
@@ -70,6 +67,7 @@ class recommendation_system:
         self.permutations = permutations
         self.signature_matrix = np.full((len(self.shingled_data), self.permutations), np.inf)
 
+        print(self.shingled_data)
         for i, shingle in enumerate(self.shingled_data):
             minhash = MinHash(num_perm=self.permutations)
             for token in shingle:
@@ -79,7 +77,7 @@ class recommendation_system:
         
         print("Minhashing processing complete, proceed to LSH.")
         # print signature matrix
-        #print("signature_matrix", self.signature_matrix)
+        print("signature_matrix", self.signature_matrix)
 
 
     def lsh(self, *args):
