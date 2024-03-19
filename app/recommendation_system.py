@@ -1,17 +1,10 @@
-#import libraries
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-from datasketch import MinHash, MinHashLSH
+import hashlib
 import numpy as np
+from nltk.tokenize import word_tokenize
+from datasketch import MinHash, MinHashLSH
 from optimal_br import OptimalBR
+from lsh_recommender import lem, stop_words
 
-lem = WordNetLemmatizer()
-
-#stopwords set as english, change language as needed
-LANGUAGE = "english"
-with open(f"stopwords/{LANGUAGE}", "r") as file:
-    stop_words = set(file.read().split())
 
 class recommendation_system:
     
@@ -52,7 +45,7 @@ class recommendation_system:
         lemmatized = [lem.lemmatize(w) for w in stopwords_removed]
         print("Lemmatization Complete.")
 
-        self.processed = lemmatized
+        self.preprocessed = lemmatized
         print("Processing Complete, please apply shingling function.")
     
 
@@ -92,7 +85,8 @@ class recommendation_system:
         else:
             # Handle the case where an invalid number of parameters is passed
             raise ValueError("Invalid number of parameters. Expected 1 or 2.")
-
+        
+        self.b, self.r = int(self.b), int(self.r)
         # Apply LSH to the current dataset
         self.compute_lsh_buckets()
 
@@ -108,8 +102,8 @@ class recommendation_system:
             signature = self.signature_matrix[i]
 
             for band_index in range(self.b):
-                band_hash_values = [hash(signature[column_index:column_index + self.r]) for column_index in range(num_permutations - self.r)]
-                band_key = hashlib.sha256(bytes(band_hash_values)).hexdigest()
+                band_hash_values = [hashlib.sha256(bytes(signature[column_index:column_index + self.r])).digest() for column_index in range(num_permutations - self.r)]
+                band_key = hashlib.sha256(b"".join(band_hash_values)).hexdigest()
 
                 if band_key in buckets:
                     buckets[band_key].add(i)
