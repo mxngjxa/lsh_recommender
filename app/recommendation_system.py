@@ -80,7 +80,11 @@ class recommendation_system:
     
     def minhash_processing(self, permutations: int):
         self.permutations = permutations
-        self.signature_matrix = np.full((len(self.shingled_data), self.permutations), np.inf)
+        self.signature_matrix = np.zeros((len(self.shingled_data), self.shingle_count))
+        for k, val in enumerate(self.shingle_set):
+            for i in range(len(self.shingled_data)):
+                if val in self.shingled_data[i][1]:
+                    self.signature_matrix[i][k] = 1
 
         for i, shingle in enumerate(self.shingled_data):
             minhash = MinHash(num_perm=self.permutations)
@@ -234,7 +238,7 @@ rec_sys = recommendation_system(raw_data)
 rec_sys.preprocess()
 
 # Set shingle size
-k = 3
+k = 2
 rec_sys.shingle(k)
 
 # Set number of permutations for MinHash
