@@ -88,7 +88,7 @@ class recommendation_system:
 
     def pre_lsh(self, n):
         # Compute optimal b and r based on n
-        self.b, self.r = OptimalBR.compute_optimal_br(n)
+        self.b, self.r = OptimalBR.br(n)
 
     def lsh(self, *args):
         # If two parameters are passed, assume they are 'b' and 'r'
