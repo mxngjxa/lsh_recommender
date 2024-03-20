@@ -20,7 +20,7 @@ class recommendation_system:
     
     def __init__(self, raw_data):
         self.raw_data = raw_data
-        self.index_data = []
+        self.index_data = list()
         for i, value in enumerate(self.raw_data):
             self.index_data.append([i, value.split()])
         self.preprocessed = None
@@ -39,17 +39,18 @@ class recommendation_system:
             return f"Processed and indexed. Ready for recommendation."
 
     def preprocess(self):
-        #remove non-alphabetical characters
         data = self.index_data
         for i in range(len(data)):
             for j in range(len(data[i][1])):
+                #removed non-alphanumeric characters
                 data[i][1][j] = re.sub(r'\W+', '', data[i][1][j])
             #stopword removed
             data[i][1] = [w for w in data[i][1] if w not in stop_words]
             #lemmatized
             data[i][1] = [lem.lemmatize(w) for w in data[i][1]]
-            
+
         self.preprocessed = data
+        #[[0, ['This', 'first', 'document']], [1, ['This', 'document', 'second', 'document']], [2, ['And', 'third', 'one']], [3, ['Is', 'first', 'document']]]
         print("Processing Complete, please apply shingling function.")
     
 
@@ -57,9 +58,12 @@ class recommendation_system:
     def shingle(self, k: int):
         self.k = k
         shingles = list()
-        for i in range(0, len(self.preprocessed) - self.k):
-            shingles.append(self.preprocessed[i:i+self.k])
+        for i in range(len(self.preprocessed)):
+            shingles.append([i, []])
+            for j in range(0, len(self.preprocessed[i][1]) - self.k):
+                shingles[i][1].append(self.preprocessed[i][1][j:j+self.k])
         self.shingled_data = tuple(shingles)
+        print(shingles)
         print(f"Shingling complete with {self.k} tokens.")
 
     
@@ -207,10 +211,10 @@ class recommendation_system:
 
 # Sample raw data
 raw_data = [
-    "This is the first document.",
-    "This document is the second document.",
-    "And this is the third one.",
-    "Is this the first document?"
+    "This is the first document are you sure what is going on.",
+    "This document is the second document whatever this is fine.",
+    "And this is the third one oh boy the document is not long enough.",
+    "Is this the first document brush pen is good here?"
 ]
 
 # Instantiate recommendation system with sample data
