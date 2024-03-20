@@ -66,7 +66,6 @@ class recommendation_system:
                 shingle_list = self.preprocessed[i][1][j:j+self.k]
                 combined = " ".join([t for t in shingle_list])
                 shingles[i][1].add(combined)
-                print("shingles[i][1]", shingles[i][1])
 
         self.shingled_data = shingles
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
@@ -83,29 +82,26 @@ class recommendation_system:
                 minhash.update(token.encode('utf8'))
             hash_values = minhash.digest()
             self.signature_matrix[i] = hash_values
-        
+        print("self.signature_matrix", self.signature_matrix)
         print("Minhashing processing complete, proceed to LSH.")
 
 
+    def pre_lsh(self, n):
+        # Compute optimal b and r based on n
+        self.b, self.r = OptimalBR.compute_optimal_br(n)
+
     def lsh(self, *args):
-        if len(args) == 1:
-            # If one parameter is passed, assume it is "n" (total number of permutations)
-            n = args[0]
-            # Compute optimal b and r based on n
-            self.b, self.r = OptimalBR.compute_optimal_br(n)
-        elif len(args) == 2:
-            # If two parameters are passed, assume they are 'b' and 'r'
+        # If two parameters are passed, assume they are 'b' and 'r'
+        if len(args) == 2:
             self.b, self.r = args
+        #For one parameter, compute optimal b and r
+        elif len(args == 1):
+            n = args[0]
+            self.pre_lsh(n)
         else:
             # Handle the case where an invalid number of parameters is passed
             raise ValueError("Invalid number of parameters. Expected 1 or 2.")
         
-        self.b, self.r = int(self.b), int(self.r)
-        # Apply LSH to the current dataset
-        self.compute_lsh_buckets()
-        print(self.lsh_buckets)
-
-    def compute_lsh_buckets(self):
         if self.signature_matrix is None:
             raise ValueError("Signature matrix is not initialized.")
 
