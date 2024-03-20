@@ -1,6 +1,6 @@
-import hashlib
 import re
 import nltk
+import hashlib
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import numpy as np
@@ -58,21 +58,16 @@ class recommendation_system:
     def shingle(self, k: int):
         self.k = k
         shingles = list()
-        self.shingle_set = set()
 
         for i in range(len(self.preprocessed)):
-            shingles.append([i, []])
+            shingles.append([i, set()])
             for j in range(0, len(self.preprocessed[i][1]) - self.k):
                 #append new shingle as list
-                shingles[i][1].append(self.preprocessed[i][1][j:j+self.k])
-                #conver this list of shingles into single string
-                new_shingle = " ".join([t for t in shingles[i][1][j]])
-                shingles[i][1][j] = new_shingle
-                #if not in set of shingles, append to set
-                if new_shingle not in self.shingle_set:
-                    self.shingle_set.add(new_shingle)
-        
-        self.shingle_count = len(self.shingle_set)
+                shingle_list = self.preprocessed[i][1][j:j+self.k]
+                combined = " ".join([t for t in shingle_list])
+                shingles[i][1].add(combined)
+                print("shingles[i][1]", shingles[i][1])
+
         self.shingled_data = shingles
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")
@@ -80,22 +75,16 @@ class recommendation_system:
     
     def minhash_processing(self, permutations: int):
         self.permutations = permutations
-        self.signature_matrix = np.zeros((len(self.shingled_data), self.shingle_count))
-        for k, val in enumerate(self.shingle_set):
-            for i in range(len(self.shingled_data)):
-                if val in self.shingled_data[i][1]:
-                    self.signature_matrix[i][k] = 1
-
+        self.signature_matrix = np.zeros((len(self.shingled_data), self.permutations))
+        
         for i, shingle in enumerate(self.shingled_data):
             minhash = MinHash(num_perm=self.permutations)
-            for token in shingle:
+            for token in shingle[1]:
                 minhash.update(token.encode('utf8'))
             hash_values = minhash.digest()
             self.signature_matrix[i] = hash_values
         
         print("Minhashing processing complete, proceed to LSH.")
-        # print signature matrix
-        print("signature_matrix", self.signature_matrix)
 
 
     def lsh(self, *args):
@@ -242,11 +231,11 @@ k = 2
 rec_sys.shingle(k)
 
 # Set number of permutations for MinHash
-permutations = 128
+permutations = 16
 rec_sys.minhash_processing(permutations)
 
 # Set parameters for LSH
-n = 128  # Total number of permutations
+n = 32  # Total number of permutations
 rec_sys.lsh(n)
 
 # Query text
