@@ -62,8 +62,8 @@ class recommendation_system:
             shingles.append([i, []])
             for j in range(0, len(self.preprocessed[i][1]) - self.k):
                 shingles[i][1].append(self.preprocessed[i][1][j:j+self.k])
-        self.shingled_data = tuple(shingles)
-        print(shingles)
+                shingles[i][1][j] = " ".join([t for t in shingles[i][1][j]])
+        self.shingled_data = shingles
         print(f"Shingling complete with {self.k} tokens.")
 
     
@@ -71,7 +71,6 @@ class recommendation_system:
         self.permutations = permutations
         self.signature_matrix = np.full((len(self.shingled_data), self.permutations), np.inf)
 
-        print(self.shingled_data)
         for i, shingle in enumerate(self.shingled_data):
             minhash = MinHash(num_perm=self.permutations)
             for token in shingle:
