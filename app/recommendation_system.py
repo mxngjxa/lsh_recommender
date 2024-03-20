@@ -58,12 +58,23 @@ class recommendation_system:
     def shingle(self, k: int):
         self.k = k
         shingles = list()
+        self.shingle_set = set()
+
         for i in range(len(self.preprocessed)):
             shingles.append([i, []])
             for j in range(0, len(self.preprocessed[i][1]) - self.k):
+                #append new shingle as list
                 shingles[i][1].append(self.preprocessed[i][1][j:j+self.k])
-                shingles[i][1][j] = " ".join([t for t in shingles[i][1][j]])
+                #conver this list of shingles into single string
+                new_shingle = " ".join([t for t in shingles[i][1][j]])
+                shingles[i][1][j] = new_shingle
+                #if not in set of shingles, append to set
+                if new_shingle not in self.shingle_set:
+                    self.shingle_set.add(new_shingle)
+        
+        self.shingle_count = len(self.shingle_set)
         self.shingled_data = shingles
+        #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")
 
     
