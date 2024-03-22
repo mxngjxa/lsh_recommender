@@ -57,12 +57,12 @@ class recommendation_system:
         shingles = list()
 
         for i in range(len(self.preprocessed)):
-            shingles.append([i, set()])
+            shingles.append([i, list()])
             for j in range(0, len(self.preprocessed[i][1]) - self.k):
                 #append new shingle as list
                 shingle_list = self.preprocessed[i][1][j:j+self.k]
                 combined = " ".join([t for t in shingle_list])
-                shingles[i][1].add(combined)
+                shingles[i][1].append(combined)
 
         self.shingled_data = shingles
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
@@ -93,7 +93,7 @@ class recommendation_system:
         if self.signature_matrix is None:
             raise ValueError("Signature matrix is not initialized.")
 
-        if not b and not r:
+        if b and r:
         # If two parameters are passed, assume they are 'b' and 'r'
             self.b, self.r = b, r
             if self.b * self.r != self.permutations:
@@ -102,93 +102,88 @@ class recommendation_system:
         #simply automatically calculate the numebr of b and r using the function
             self.pre_lsh(self.permutations)
 
+        print("br", self.b, self.r)
         self.lsh_buckets = {}
 
         for i in range(self.docs):
             current = self.signature_matrix[i]
+            print("current", current)
 
             for band_index in range(self.b):
                 start = band_index * self.r
                 band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
+                print(band_index)
 
-                if band_key in buckets.keys():
+                if band_key in self.lsh_buckets.keys():
                     self.lsh_buckets[band_key].add(i)
                 else:
                     self.lsh_buckets[band_key] = {i}
         print(f"LSH complete with {self.b} bands and {self.r} rows.")
     
-    def query(self, text_input: str, topk: int):
+    def query(self, text_input: str, topk: int, query_key = "alpha"):
+
         if not all(hasattr(self, attr) for attr in ['k', 'permutations', 'b', 'r']):
             raise ValueError("Shingling and LSH parameters are not initialized.")
-
-        tokenized = word_tokenize(text_input.lower())
-        ascii_filtered = ''.join([x for x in tokenized if x.isascii()])
-        stopwords_removed = [w for w in ascii_filtered if w not in stop_words]
-        lemmatized = [lem.lemmatize(w) for w in stopwords_removed]
-        shingles = []
-        for i in range(0, len(lemmatized) - self.k):
-            shingles.append(lemmatized[i:i + self.k])
-        shingles = tuple(shingles)
-        print(f"Preprocessing/shingling complete with {self.k} tokens.")
-
-        text_input_signature = np.full((len(shingles), self.permutations), np.inf)
-
-        for i, shingle in enumerate(shingles):
-            minhash = MinHash(num_perm=self.permutations)
-            for token in shingle:
-                minhash.update(token.encode('utf8'))
-            hash_values = minhash.digest()
-            text_input_signature[i] = hash_values
-        print("Minhashing processing complete, proceed to LSH.")
-
-        num_shingles, num_permutations = text_input_signature.shape
-        query_lsh_buckets = {}
-
-        for i in range(num_shingles):
-            buckets = {}
-            signature = text_input_signature[i]
-
-            for band_index in range(self.b):
-                band_hash_values = [hashlib.sha256(bytes(signature[column_index:column_index + self.r])).digest() for column_index in range(num_permutations - self.r)]
-                band_key = hashlib.sha256(b"".join(band_hash_values)).hexdigest()
-
-                if band_key in buckets:
-                    buckets[band_key].add(i)
-                else:
-                    buckets[band_key] = {i}
-
-            query_lsh_buckets[i] = buckets
         
-        print("query_lsh_buckets", query_lsh_buckets)
+        item = text_input.split() #already a list
+        l = len(item)
+
+        for i in range(l):
+            #removed non-alphanumeric characters
+            item[i]= re.sub(r'\W+', '', item[i])
+        #stopword removed
+        item = [w for w in item if w not in stop_words]
+        #lemmatized
+        item = [lem.lemmatize(w) for w in item]
+
+        shingles = list()
+        #shingle data
+        for i in range(l - self.k):
+            shingles.append(" ".join(item[i:i + self.k]))
+        
+        #hash data
+        minhash = MinHash(num_perm=self.permutations)
+        for s in shingles:
+            minhash.update(s.encode("utf-8"))
+        hashed = minhash.digest()
+        
+        #apply lsh and hash into lsh_buckets dictionary
+        for i in range(self.b):
+            start = i * self.r
+            item_key = hashlib.sha256(b"".join([line for line in hashed[start:start + self.r]])).hexdigest()
+
+            if item_key in self.lsh_buckets.keys():
+                self.lsh_buckets[item_key].add(query_key)
+            else:
+                self.lsh_buckets[item_key] = {query_key}
 
         # Find candidates using LSH
-        candidates = self.find_candidates(query_lsh_buckets)
+        candidates = self.find_candidates(query_key)
         # Return topK most similar articles
-        return self.top_k_similar_articles(candidates, topk)
+        return candidates
 
-    def find_candidates(self, query_lsh_buckets):
-        if query_lsh_buckets is None or self.lsh_buckets is None:
+    def find_candidates(self, query_key):
+        if self.lsh_buckets is None:
             raise ValueError("LSH buckets are not initialized.")
 
         candidates = {}
+        print("self.lsh_buckets", self.lsh_buckets)
 
         # Iterate over each item in the large dataset LSH buckets
-        for key, buckets in self.lsh_buckets.items():
-            print("1\n", key, buckets)
-            # Iterate over each bucket in the large dataset LSH buckets
-            for band_key, bucket in buckets.items():
-                print("2\n", band_key, bucket)
-                # Compute Jaccard similarity between the query MinHash and the MinHash of the current item
-                jaccard_similarity = band_key.jaccard(item_minhash)
+        for key, bucket in self.lsh_buckets.items():
+            print("1\n", key, bucket)
+            if query_key in bucket:
+                for item in bucket:
+                    if item not in candidates.keys():
+                        candidates[item] = 1
+                    else:
+                        candidates[item] += 1
 
-                # Add the item ID and its Jaccard similarity to the candidates dictionary
-                if key in candidates:
-                    candidates[key] += jaccard_similarity
-                else:
-                    candidates[key] = jaccard_similarity
+        del candidates[query_key]
 
         # Sort the candidates by Jaccard similarity in descending order
-        sorted_candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
+        sorted_candidates = sorted(list(candidates.items()), key=lambda x: x[1], reverse=True)
+        print("sorted_candidates", sorted_candidates)
 
         return sorted_candidates
 
@@ -213,12 +208,12 @@ def main():
     rec_sys.shingle(k)
 
     # Set number of permutations for MinHash
-    permutations = 16
+    permutations = 256
     rec_sys.index(permutations)
 
     # Set parameters for LSH
-    n = 32  # Total number of permutations
-    rec_sys.lsh_256(n)
+    #n = 32  # Total number of permutations
+    rec_sys.lsh_256()
 
     # Query text
     query_text = "This is a test query document."
