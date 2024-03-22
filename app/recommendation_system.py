@@ -23,9 +23,6 @@ class recommendation_system:
         self.index_data = list()
         for i, value in enumerate(self.raw_data):
             self.index_data.append([i, value.split()])
-        self.preprocessed = None
-        self.k = None
-        self.shingled = None
 
 
     def __repr__(self):
@@ -74,7 +71,8 @@ class recommendation_system:
     
     def minhash_processing(self, permutations: int):
         self.permutations = permutations
-        self.signature_matrix = np.zeros((len(self.shingled_data), self.permutations))
+        self.docs = len(self.shingled_data)
+        self.signature_matrix = np.zeros((self.docs, self.permutations))
         
         for i, shingle in enumerate(self.shingled_data):
             minhash = MinHash(num_perm=self.permutations)
@@ -92,7 +90,10 @@ class recommendation_system:
         self.b, self.r = best_br.br(x)
 
     def lsh(self, b = None, r = None):
-        
+       #complete lsh and returns a dictionary with lsh values as keys and set of documents sorted in as values 
+        if self.signature_matrix is None:
+            raise ValueError("Signature matrix is not initialized.")
+
         if not b and not r:
         # If two parameters are passed, assume they are 'b' and 'r'
             self.b, self.r = b, r
@@ -102,26 +103,19 @@ class recommendation_system:
         #simply automatically calculate the numebr of b and r using the function
             self.pre_lsh(self.permutations)
 
-        if self.signature_matrix is None:
-            raise ValueError("Signature matrix is not initialized.")
-
-        docs, num_permutations = self.signature_matrix.shape
         self.lsh_buckets = {}
 
-        for i in range(num_shingles):
-            buckets = {}
-            signature = self.signature_matrix[i]
+        for i in range(self.docs):
+            current = self.signature_matrix[i]
 
             for band_index in range(self.b):
-                band_hash_values = [hashlib.sha256(bytes(signature[column_index:column_index + self.r])).digest() for column_index in range(num_permutations - self.r)]
-                band_key = hashlib.sha256(b"".join(band_hash_values)).hexdigest()
+                start = band_index * self.r
+                band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
 
-                if band_key in buckets:
-                    buckets[band_key].add(i)
+                if band_hash_value in buckets.keys():
+                    self.lsh_buckets[band_key].add(i)
                 else:
-                    buckets[band_key] = {i}
-
-            self.lsh_buckets[i] = buckets
+                    self.lsh_buckets[band_key] = {i}
 
     def index(self, article_id, signature):
         if self.signature_matrix is None:
