@@ -90,18 +90,17 @@ class recommendation_system:
         # Compute optimal b and r based on n
         self.b, self.r = OptimalBR.br(n)
 
-    def lsh(self, *args):
-        # If two parameters are passed, assume they are 'b' and 'r'
-        if len(args) == 2:
-            self.b, self.r = args
-        #For one parameter, compute optimal b and r
-        elif len(args == 1):
-            n = args[0]
-            self.pre_lsh(n)
-        else:
-            # Handle the case where an invalid number of parameters is passed
-            raise ValueError("Invalid number of parameters. Expected 1 or 2.")
+    def lsh(self, b = None, r = None):
         
+        if len(args) == 2:
+        # If two parameters are passed, assume they are 'b' and 'r'
+            self.b, self.r = b, r
+            if self.b * self.r != self.permutations:
+                raise ValueError(f"Number of Bands and Rows invalid, product must be equal to {self.permutations}.")
+        else:
+        #simply automatically calculate the numebr of b and r using the function
+            self.b, self.r = self.pre_lsh(self.permutations)
+
         if self.signature_matrix is None:
             raise ValueError("Signature matrix is not initialized.")
 

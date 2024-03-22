@@ -5,13 +5,14 @@ from scipy.integrate import quad as integrate
     
 
 class OptimalBR:
-    def br(n):
-        self.t0 = 0.8
-        def false_positive_integral(r, b):
-            return quad(lambda t: (1 - (1 - t**r)**b), 0, self.t0)[0]
+    def false_positive(r, b):
+        return quad(lambda t: (1 - (1 - t**r)**b), 0, self.t0)[0]
 
-        def false_negative_integral(r, b):
-            return quad(lambda t: (1 - t**r)**b, self.t0, 1)[0]
+    def false_negative(r, b):
+        return quad(lambda t: (1 - t**r)**b, self.t0, 1)[0]
+
+    def br(self, n):
+        self.t0 = 0.8
 
         best_fpr = float('inf')
         best_fnr = float('inf')
@@ -27,8 +28,8 @@ class OptimalBR:
             b = n // r
 
             # Calculate false positive rate and false negative rate
-            fpr = false_positive_integral(r, b)
-            fnr = false_negative_integral(r, b)
+            fpr = self.false_positive(r, b)
+            fnr = self.false_negative(r, b)
 
             # Update best values if found
             if fpr < best_fpr or (fpr == best_fpr and fnr < best_fnr):
