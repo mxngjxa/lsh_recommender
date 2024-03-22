@@ -82,29 +82,30 @@ class recommendation_system:
                 minhash.update(token.encode('utf8'))
             hash_values = minhash.digest()
             self.signature_matrix[i] = hash_values
-        print("self.signature_matrix", self.signature_matrix)
+        print("self.signature_matrix", self.signature_matrix, type(self.signature_matrix))
         print("Minhashing processing complete, proceed to LSH.")
 
 
-    def pre_lsh(self, n):
+    def pre_lsh(self, x: int):
         # Compute optimal b and r based on n
-        self.b, self.r = OptimalBR.br(n)
+        best_br = OptimalBR()
+        self.b, self.r = best_br.br(x)
 
     def lsh(self, b = None, r = None):
         
-        if len(args) == 2:
+        if not b and not r:
         # If two parameters are passed, assume they are 'b' and 'r'
             self.b, self.r = b, r
             if self.b * self.r != self.permutations:
                 raise ValueError(f"Number of Bands and Rows invalid, product must be equal to {self.permutations}.")
         else:
         #simply automatically calculate the numebr of b and r using the function
-            self.b, self.r = self.pre_lsh(self.permutations)
+            self.pre_lsh(self.permutations)
 
         if self.signature_matrix is None:
             raise ValueError("Signature matrix is not initialized.")
 
-        num_shingles, num_permutations = self.signature_matrix.shape
+        docs, num_permutations = self.signature_matrix.shape
         self.lsh_buckets = {}
 
         for i in range(num_shingles):

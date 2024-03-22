@@ -1,15 +1,14 @@
-# lsh_recommender/__init__.py
 import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import quad as integrate
     
 
 class OptimalBR:
-    def false_positive(r, b):
-        return quad(lambda t: (1 - (1 - t**r)**b), 0, self.t0)[0]
+    def false_positive(self, r, b):
+        return integrate(lambda t: (1 - (1 - t**r)**b), 0, self.t0)[0]
 
-    def false_negative(r, b):
-        return quad(lambda t: (1 - t**r)**b, self.t0, 1)[0]
+    def false_negative(self, r, b):
+        return integrate(lambda t: (1 - t**r)**b, self.t0, 1)[0]
 
     def br(self, n):
         self.t0 = 0.8
@@ -39,3 +38,10 @@ class OptimalBR:
                 best_r = r
 
         return best_b, best_r
+
+def main():
+    testn = 16
+    print(OptimalBR().br(testn))
+
+if __name__ == "__main__":
+    main()
