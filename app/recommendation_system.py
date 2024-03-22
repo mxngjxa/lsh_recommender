@@ -69,7 +69,7 @@ class recommendation_system:
         print(f"Shingling complete with {self.k} tokens.")
 
     
-    def minhash_processing(self, permutations: int):
+    def index(self, permutations: int):
         self.permutations = permutations
         self.docs = len(self.shingled_data)
         self.signature_matrix = np.zeros((self.docs, self.permutations))
@@ -80,7 +80,6 @@ class recommendation_system:
                 minhash.update(token.encode('utf8'))
             hash_values = minhash.digest()
             self.signature_matrix[i] = hash_values
-        print("self.signature_matrix", self.signature_matrix, type(self.signature_matrix))
         print("Minhashing processing complete, proceed to LSH.")
 
 
@@ -89,7 +88,7 @@ class recommendation_system:
         best_br = OptimalBR()
         self.b, self.r = best_br.br(x)
 
-    def lsh(self, b = None, r = None):
+    def lsh_256(self, b = None, r = None):
        #complete lsh and returns a dictionary with lsh values as keys and set of documents sorted in as values 
         if self.signature_matrix is None:
             raise ValueError("Signature matrix is not initialized.")
@@ -112,19 +111,11 @@ class recommendation_system:
                 start = band_index * self.r
                 band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
 
-                if band_hash_value in buckets.keys():
+                if band_key in buckets.keys():
                     self.lsh_buckets[band_key].add(i)
                 else:
                     self.lsh_buckets[band_key] = {i}
-
-    def index(self, article_id, signature):
-        if self.signature_matrix is None:
-            raise ValueError("Signature matrix is not initialized.")
-
-        if article_id >= len(self.signature_matrix):
-            raise ValueError("Article ID exceeds signature matrix size.")
-
-        self.signature_matrix[article_id] = signature
+        print(f"LSH complete with {self.b} bands and {self.r} rows.")
     
     def query(self, text_input: str, topk: int):
         if not all(hasattr(self, attr) for attr in ['k', 'permutations', 'b', 'r']):
@@ -202,39 +193,43 @@ class recommendation_system:
         return sorted_candidates
 
 
-# Sample raw data
-raw_data = [
-    "This is the first document are you sure what is going on.",
-    "This document is the second document whatever this is fine.",
-    "And this is the third one oh boy the document is not long enough.",
-    "Is this the first document brush pen is good here?"
-]
+def main():
+    # Sample raw data
+    raw_data = [
+        "This is the first document are you sure what is going on.",
+        "This document is the second document whatever this is fine.",
+        "And this is the third one oh boy the document is not long enough.",
+        "Is this the first document brush pen is good here?"
+    ]
 
-# Instantiate recommendation system with sample data
-rec_sys = recommendation_system(raw_data)
+    # Instantiate recommendation system with sample data
+    rec_sys = recommendation_system(raw_data)
 
-# Perform preprocessing
-rec_sys.preprocess()
+    # Perform preprocessing
+    rec_sys.preprocess()
 
-# Set shingle size
-k = 2
-rec_sys.shingle(k)
+    # Set shingle size
+    k = 2
+    rec_sys.shingle(k)
 
-# Set number of permutations for MinHash
-permutations = 16
-rec_sys.minhash_processing(permutations)
+    # Set number of permutations for MinHash
+    permutations = 16
+    rec_sys.index(permutations)
 
-# Set parameters for LSH
-n = 32  # Total number of permutations
-rec_sys.lsh(n)
+    # Set parameters for LSH
+    n = 32  # Total number of permutations
+    rec_sys.lsh_256(n)
 
-# Query text
-query_text = "This is a test query document."
+    # Query text
+    query_text = "This is a test query document."
 
-# Define the value of topK
-topK = 5
+    # Define the value of topK
+    topK = 5
 
-# Query the recommendation system
-top_similar_articles = rec_sys.query(query_text, topK)
+    # Query the recommendation system
+    top_similar_articles = rec_sys.query(query_text, topK)
 
-print("Top similar articles:", top_similar_articles)
+    print("Top similar articles:", top_similar_articles)
+
+if __name__ == "__main__":
+    main()
