@@ -2,3 +2,4 @@ datasketch
 nltk
 numpy
 scipy
+scikit-learn

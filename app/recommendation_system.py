@@ -1,4 +1,5 @@
 import re
+import os
 import nltk
 import hashlib
 from nltk.corpus import stopwords
@@ -6,14 +7,20 @@ from nltk.stem import WordNetLemmatizer
 import numpy as np
 from nltk.tokenize import word_tokenize
 from datasketch import MinHash, MinHashLSH
-from optimal_br import OptimalBR
+try:
+    from .optimal_br import OptimalBR
+except:
+    from optimal_br import OptimalBR
 
 
 lem = WordNetLemmatizer()
 
-nltk.download('stopwords')
-nltk.download('wordnet')
-nltk.download('punkt')
+# Set the NLTK_DATA environment variable to the desired directory
+current_directory = os.getcwd()
+desired_directory = f'{current_directory}/.venv/nltk_data'
+
+nltk.download('stopwords', download_dir=desired_directory)
+nltk.download('wordnet', download_dir=desired_directory)
 stop_words = set(stopwords.words('english'))
 
 class recommendation_system:

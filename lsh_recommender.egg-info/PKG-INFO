@@ -14,5 +14,6 @@ Requires-Dist: datasketch
 Requires-Dist: nltk
 Requires-Dist: numpy
 Requires-Dist: scipy
+Requires-Dist: scikit-learn
 
 A Python package implementing a Locality Sensitive Hashing (LSH) recommendation system.
