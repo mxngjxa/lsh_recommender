@@ -25,23 +25,27 @@ stop_words = set(stopwords.words('english'))
 
 class recommendation_system:
     
-    def __init__(self, raw_data):
-        self.raw_data = raw_data
+    def __init__(self, group, data):
         self.index_data = list()
-        for i, value in enumerate(self.raw_data):
-            self.index_data.append([i, value.split()])
+        i, self.raw_data = group, data
+        for group, data in zip(i, self.raw_data):
+            self.index_data.append([i, data.split()])
 
 
     def __repr__(self):
-        if not self.preprocessed:
+        if not hasattr(self, 'preprocessed') or self.preprocessed is None:
             return f"Raw text of length {len(self.raw_data)}. Awaiting preprocessing."
-        elif not self.shingled:
-            return f"Processed text of length {len(self.preprocessed)}. Awaiting shingling."
-        elif not self.signature_matrix:
-            return f"Shingled into {self.k} shingles. Awaiting processing."
+        elif not hasattr(self, 'shingled') or self.shingled is None:
+            return f"Preprocessed text of length {len(self.preprocessed)}. Awaiting shingling."
+        elif not hasattr(self, 'signature_matrix') or self.signature_matrix is None:
+            return f"Shingled into {self.k}-token shingles. Awaiting MinHash indexing."
+        elif not hasattr(self, 'lsh_buckets') or self.lsh_buckets is None:
+            return f"MinHash indexed with {self.permutations} permutations. Awaiting Locality Sensitive Hashing (LSH)."
         else:
-            return f"Processed and indexed. Ready for recommendation."
+            return f"Text preprocessed, shingled into {self.k}-token shingles, indexed using MinHash with {self.permutations} permutations, and ready for querying with LSH using {self.b} bands and {self.r} rows per band."
 
+
+    #clean, remove stopwords, and lemmatize data
     def preprocess(self):
         data = self.index_data
         for i in range(len(data)):
@@ -75,7 +79,8 @@ class recommendation_system:
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")
 
-    
+
+    #use minhashing to permute data into a signature matrix
     def index(self, permutations: int):
         self.permutations = permutations
         self.docs = len(self.shingled_data)
@@ -90,11 +95,14 @@ class recommendation_system:
         print("Minhashing processing complete, proceed to LSH.")
 
 
+    #compute the optimal number of bands and rows per band using a seperate function
     def pre_lsh(self, x: int):
         # Compute optimal b and r based on n
         best_br = OptimalBR()
         self.b, self.r = best_br.br(x)
 
+
+    #use lsh_256 to hash items into buckets. LSH processing is complete after this.
     def lsh_256(self, b = None, r = None):
        #complete lsh and returns a dictionary with lsh values as keys and set of documents sorted in as values 
         if self.signature_matrix is None:
@@ -109,17 +117,14 @@ class recommendation_system:
         #simply automatically calculate the numebr of b and r using the function
             self.pre_lsh(self.permutations)
 
-        print("br", self.b, self.r)
         self.lsh_buckets = {}
 
         for i in range(self.docs):
             current = self.signature_matrix[i]
-            print("current", current)
 
             for band_index in range(self.b):
                 start = band_index * self.r
                 band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
-                print(band_index)
 
                 if band_key in self.lsh_buckets.keys():
                     self.lsh_buckets[band_key].add(i)
@@ -127,6 +132,8 @@ class recommendation_system:
                     self.lsh_buckets[band_key] = {i}
         print(f"LSH complete with {self.b} bands and {self.r} rows.")
     
+
+    #completes all the previous steps for a unique string and sees which data bucket it would likely fit into.
     def query(self, text_input: str, topk: int, query_key = "alpha"):
 
         if not all(hasattr(self, attr) for attr in ['k', 'permutations', 'b', 'r']):
@@ -169,16 +176,16 @@ class recommendation_system:
         # Return topK most similar articles
         return candidates
 
+
+    #after querying, find the most likely candidtates the queried text would fit into.
     def find_candidates(self, query_key):
         if self.lsh_buckets is None:
             raise ValueError("LSH buckets are not initialized.")
 
         candidates = {}
-        print("self.lsh_buckets", self.lsh_buckets)
 
         # Iterate over each item in the large dataset LSH buckets
         for key, bucket in self.lsh_buckets.items():
-            print("1\n", key, bucket)
             if query_key in bucket:
                 for item in bucket:
                     if item not in candidates.keys():
@@ -203,9 +210,10 @@ def main():
         "And this is the third one oh boy the document is not long enough.",
         "Is this the first document brush pen is good here?"
     ]
+    index = [0, 1, 2, 3]
 
     # Instantiate recommendation system with sample data
-    rec_sys = recommendation_system(raw_data)
+    rec_sys = recommendation_system(index, raw_data)
 
     # Perform preprocessing
     rec_sys.preprocess()
@@ -232,6 +240,8 @@ def main():
     top_similar_articles = rec_sys.query(query_text, topK)
 
     print("Top similar articles:", top_similar_articles)
+
+    print(rec_sys.lsh_buckets)
 
 if __name__ == "__main__":
     main()
