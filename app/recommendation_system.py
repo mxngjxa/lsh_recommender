@@ -26,10 +26,11 @@ stop_words = set(stopwords.words('english'))
 class recommendation_system:
     
     def __init__(self, group, data):
-        self.index_data = list()
+        self.index_raw_data = list()
         i, self.raw_data = group, data
         for group, data in zip(i, self.raw_data):
-            self.index_data.append([i, data.split()])
+            #remove the sender information and keep this a simple index, data list
+            self.index_raw_data.append([group, data[1]])
 
 
     def __repr__(self):
@@ -47,51 +48,54 @@ class recommendation_system:
 
     #clean, remove stopwords, and lemmatize data
     def preprocess(self):
-        data = self.index_data
+        print("Preprocessing.")
+        data = self.index_raw_data
         for i in range(len(data)):
+            #remove non-alphanumeric characters
+            data[i][1] = data[i][1].split()
             for j in range(len(data[i][1])):
-                #removed non-alphanumeric characters
                 data[i][1][j] = re.sub(r'\W+', '', data[i][1][j])
             #stopword removed
             data[i][1] = [w for w in data[i][1] if w not in stop_words]
             #lemmatized
             data[i][1] = [lem.lemmatize(w) for w in data[i][1]]
-
+        
         self.preprocessed = data
-        #[[0, ['This', 'first', 'document']], [1, ['This', 'document', 'second', 'document']], [2, ['And', 'third', 'one']], [3, ['Is', 'first', 'document']]]
         print("Processing Complete, please apply shingling function.")
     
 
     #transform document into shingles
     def shingle(self, k: int):
+        print(f"Applying shingling function with {k} tokens.")
         self.k = k
         shingles = list()
 
         for i in range(len(self.preprocessed)):
-            shingles.append([i, list()])
-            for j in range(0, len(self.preprocessed[i][1]) - self.k):
+            shingles.append([self.preprocessed[i][0], list()])
+            for j in range(len(self.preprocessed[i][1]) - self.k):
                 #append new shingle as list
                 shingle_list = self.preprocessed[i][1][j:j+self.k]
                 combined = " ".join([t for t in shingle_list])
                 shingles[i][1].append(combined)
 
         self.shingled_data = shingles
+        print(shingles)
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")
 
 
     #use minhashing to permute data into a signature matrix
     def index(self, permutations: int):
+        print("MinHashing initiated.")
         self.permutations = permutations
-        self.docs = len(self.shingled_data)
-        self.signature_matrix = np.zeros((self.docs, self.permutations))
+        self.signature_matrix = list()
         
-        for i, shingle in enumerate(self.shingled_data):
+        for i in range(len(self.shingled_data)):
             minhash = MinHash(num_perm=self.permutations)
-            for token in shingle[1]:
+            for token in self.shingled_data[i][1]:
                 minhash.update(token.encode('utf8'))
             hash_values = minhash.digest()
-            self.signature_matrix[i] = hash_values
+            self.signature_matrix.append([self.shingled_data[i][0], hash_values])
         print("Minhashing processing complete, proceed to LSH.")
 
 
@@ -100,6 +104,7 @@ class recommendation_system:
         # Compute optimal b and r based on n
         best_br = OptimalBR()
         self.b, self.r = best_br.br(x)
+        return f"{self.b} bands and {self.r} rows per band computed."
 
 
     #use lsh_256 to hash items into buckets. LSH processing is complete after this.
@@ -107,6 +112,7 @@ class recommendation_system:
        #complete lsh and returns a dictionary with lsh values as keys and set of documents sorted in as values 
         if self.signature_matrix is None:
             raise ValueError("Signature matrix is not initialized.")
+        print("LSH initiated.")
 
         if b and r:
         # If two parameters are passed, assume they are 'b' and 'r'
@@ -117,59 +123,75 @@ class recommendation_system:
         #simply automatically calculate the numebr of b and r using the function
             self.pre_lsh(self.permutations)
 
-        self.lsh_buckets = {}
+        self.lsh_buckets = dict()
 
-        for i in range(self.docs):
-            current = self.signature_matrix[i]
+        for i in range(len(self.signature_matrix)):
+            category, current = self.signature_matrix[i]
 
             for band_index in range(self.b):
                 start = band_index * self.r
                 band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
 
                 if band_key in self.lsh_buckets.keys():
-                    self.lsh_buckets[band_key].add(i)
+                    self.lsh_buckets[band_key].add(category)
                 else:
-                    self.lsh_buckets[band_key] = {i}
+                    self.lsh_buckets[band_key] = {category}
         print(f"LSH complete with {self.b} bands and {self.r} rows.")
     
 
     #completes all the previous steps for a unique string and sees which data bucket it would likely fit into.
-    def query(self, text_input: str, topk: int, query_key = "alpha"):
+    def query(self, data_index: list, data_test: list, topk: int):
 
         if not all(hasattr(self, attr) for attr in ['k', 'permutations', 'b', 'r']):
             raise ValueError("Shingling and LSH parameters are not initialized.")
         
-        item = text_input.split() #already a list
-        l = len(item)
+        #initiated document querying function
+        query_items = list()
 
-        for i in range(l):
-            #removed non-alphanumeric characters
-            item[i]= re.sub(r'\W+', '', item[i])
-        #stopword removed
-        item = [w for w in item if w not in stop_words]
-        #lemmatized
-        item = [lem.lemmatize(w) for w in item]
+        for i, data in zip(data_index, data_test):
+            data = data.split()
+            for j in range(len(data)):
+                data[j] = re.sub(r'\W+', '', data[j])
+            #stopword removed
+            data = [w for w in data if w not in stop_words]
+            #lemmatized
+            data = [lem.lemmatize(w) for w in data]
+            query_items.append([i, data])
 
-        shingles = list()
-        #shingle data
-        for i in range(l - self.k):
-            shingles.append(" ".join(item[i:i + self.k]))
+        #shingling data
+        query_shingles = list()
+
+        for i in range(len(query_items)):
+            query_shingles.append([query_items[i][0], list()])
+            for j in range(len(query_items[i][1]) - self.k):
+                shingle_list = query_items[i][1][j:j+self.k]
+                combined = " ".join([t for t in shingle_list])
+                query_shingles[i][1].append(combined)
         
         #hash data
-        minhash = MinHash(num_perm=self.permutations)
-        for s in shingles:
-            minhash.update(s.encode("utf-8"))
-        hashed = minhash.digest()
+        query_perm_matrix = list()
+
+        for i in len(query_shingles):
+            minhash = MinHash(num_perm=self.permutations)
+            for token in query_shingles[i][1]:
+                minhash.update(token.encode("utf-8"))
+            hash_values = minhash.digest()
+            query_perm_matrix.append([query_shingles[i][0]], hash_values)
         
         #apply lsh and hash into lsh_buckets dictionary
-        for i in range(self.b):
-            start = i * self.r
-            item_key = hashlib.sha256(b"".join([line for line in hashed[start:start + self.r]])).hexdigest()
+        query_lsh_buckets = dict()
 
-            if item_key in self.lsh_buckets.keys():
-                self.lsh_buckets[item_key].add(query_key)
-            else:
-                self.lsh_buckets[item_key] = {query_key}
+        for i in range(len(query_perm_matrix)):
+            category, current = query_perm_matrix[i]
+
+            for band_index in range(self.b):
+                start = band_index * self.r
+                band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
+
+                if band_key in query_lsh_buckets.keys():
+                    query_lsh_buckets[band_key].add(category)
+                else:
+                    query_lsh_buckets[band_key] = {category}
 
         # Find candidates using LSH
         candidates = self.find_candidates(query_key)
@@ -204,13 +226,8 @@ class recommendation_system:
 
 def main():
     # Sample raw data
-    raw_data = [
-        "This is the first document are you sure what is going on.",
-        "This document is the second document whatever this is fine.",
-        "And this is the third one oh boy the document is not long enough.",
-        "Is this the first document brush pen is good here?"
-    ]
-    index = [0, 1, 2, 3]
+    raw_data = [("Sender Information 1", "Email Content 1"), ("Sender Information 2", "Email Content 2, somewier1s_Asjidfj stuuff !!!+£")]
+    index = [0, 1]
 
     # Instantiate recommendation system with sample data
     rec_sys = recommendation_system(index, raw_data)
@@ -231,13 +248,14 @@ def main():
     rec_sys.lsh_256()
 
     # Query text
-    query_text = "This is a test query document."
+    query_text = ["This is a test query document."]
+    query_index = "index"
 
     # Define the value of topK
     topK = 5
 
     # Query the recommendation system
-    top_similar_articles = rec_sys.query(query_text, topK)
+    top_similar_articles = rec_sys.query(query_index, query_text, topK)
 
     print("Top similar articles:", top_similar_articles)
 
