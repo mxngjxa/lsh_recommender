@@ -30,8 +30,7 @@ class recommendation_system:
         i, self.raw_data = group, data
         for group, data in zip(i, self.raw_data):
             #remove the sender information and keep this a simple index, data list
-            self.index_raw_data.append([group, data[1]])
-
+            self.index_raw_data.append([group, data])
 
     def __repr__(self):
         if not hasattr(self, 'preprocessed') or self.preprocessed is None:
@@ -79,7 +78,7 @@ class recommendation_system:
                 shingles[i][1].append(combined)
 
         self.shingled_data = shingles
-        print(shingles)
+        #print(shingles)
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")
 
@@ -122,7 +121,6 @@ class recommendation_system:
         else:
         #simply automatically calculate the numebr of b and r using the function
             self.pre_lsh(self.permutations)
-
         self.lsh_buckets = dict()
 
         for i in range(len(self.signature_matrix)):
@@ -140,86 +138,67 @@ class recommendation_system:
     
 
     #completes all the previous steps for a unique string and sees which data bucket it would likely fit into.
-    def query(self, data_index: list, data_test: list, topk: int):
+    def query(self, data_test: str, topk: int):
 
         if not all(hasattr(self, attr) for attr in ['k', 'permutations', 'b', 'r']):
             raise ValueError("Shingling and LSH parameters are not initialized.")
         
-        #initiated document querying function
-        query_items = list()
+        #initiated document querying
+        query_data = data_test.split()
+        for i in range(len(query_data)):
+            query_data[i] = re.sub(r'\W+', '', query_data[i])
+        #stopword removed
+        query_data = [w for w in query_data if w not in stop_words]
+        #lemmatized
+        query_data = [lem.lemmatize(w) for w in query_data]
 
-        for i, data in zip(data_index, data_test):
-            data = data.split()
-            for j in range(len(data)):
-                data[j] = re.sub(r'\W+', '', data[j])
-            #stopword removed
-            data = [w for w in data if w not in stop_words]
-            #lemmatized
-            data = [lem.lemmatize(w) for w in data]
-            query_items.append([i, data])
 
         #shingling data
         query_shingles = list()
 
-        for i in range(len(query_items)):
-            query_shingles.append([query_items[i][0], list()])
-            for j in range(len(query_items[i][1]) - self.k):
-                shingle_list = query_items[i][1][j:j+self.k]
-                combined = " ".join([t for t in shingle_list])
-                query_shingles[i][1].append(combined)
-        
-        #hash data
-        query_perm_matrix = list()
+        for i in range(len(query_data) - self.k):
+            shingle_list = query_data[i:i+self.k]
+            combined = " ".join([t for t in shingle_list])
+            query_shingles.append(combined)
 
-        for i in len(query_shingles):
-            minhash = MinHash(num_perm=self.permutations)
-            for token in query_shingles[i][1]:
-                minhash.update(token.encode("utf-8"))
-            hash_values = minhash.digest()
-            query_perm_matrix.append([query_shingles[i][0]], hash_values)
+        #hash data
+        minhash = MinHash(num_perm=self.permutations)
+        for token in query_shingles:
+            minhash.update(token.encode("utf-8"))
+        hash_values = minhash.digest()
         
         #apply lsh and hash into lsh_buckets dictionary
-        query_lsh_buckets = dict()
-
-        for i in range(len(query_perm_matrix)):
-            category, current = query_perm_matrix[i]
-
-            for band_index in range(self.b):
-                start = band_index * self.r
-                band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
-
-                if band_key in query_lsh_buckets.keys():
-                    query_lsh_buckets[band_key].add(category)
-                else:
-                    query_lsh_buckets[band_key] = {category}
-
+        lsh_keys = list()
+        for band_index in range(self.b):
+            start = band_index * self.r
+            band_key = hashlib.sha256(b"".join([line for line in hash_values[start:start + self.r]])).hexdigest()
+            lsh_keys.append(band_key)
+        
         # Find candidates using LSH
-        candidates = self.find_candidates(query_key)
+        candidates = self.find_candidates(lsh_keys)[0:topk]
         # Return topK most similar articles
         return candidates
 
 
     #after querying, find the most likely candidtates the queried text would fit into.
-    def find_candidates(self, query_key):
+    def find_candidates(self, query_keys):
         if self.lsh_buckets is None:
             raise ValueError("LSH buckets are not initialized.")
-
+        
         candidates = {}
 
         # Iterate over each item in the large dataset LSH buckets
         for key, bucket in self.lsh_buckets.items():
-            if query_key in bucket:
+            if query_keys == key:
                 for item in bucket:
                     if item not in candidates.keys():
                         candidates[item] = 1
                     else:
                         candidates[item] += 1
-
-        del candidates[query_key]
-
+        
         # Sort the candidates by Jaccard similarity in descending order
         sorted_candidates = sorted(list(candidates.items()), key=lambda x: x[1], reverse=True)
-        print("sorted_candidates", sorted_candidates)
+        print("Sorted Candidates", sorted_candidates)
 
         return sorted_candidates
 
@@ -249,7 +228,7 @@ def main():
 
     # Query text
     query_text = ["This is a test query document."]
-    query_index = "index"
+    query_index = "index1"
 
     # Define the value of topK
     topK = 5
