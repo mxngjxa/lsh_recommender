@@ -173,6 +173,7 @@ class recommendation_system:
             start = band_index * self.r
             band_key = hashlib.sha256(b"".join([line for line in hash_values[start:start + self.r]])).hexdigest()
             lsh_keys.append(band_key)
+        print(lsh_keys)
         
         # Find candidates using LSH
         candidates = self.find_candidates(lsh_keys)[0:topk]

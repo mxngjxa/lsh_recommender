@@ -18,10 +18,6 @@ newsgroups_test = fetch_20newsgroups(subset="test", data_home=desired_directory)
 #testing number 1
 #print(newsgroups_test["data"][1])
 
-test_data = newsgroups_test["data"][1]
-test_index = "hello"
-print("target bin", newsgroups_test["target"][1])
-
 
 def init():
     converter = dict()
@@ -35,7 +31,7 @@ def index_to_target(number: int):
 def main():
     init()
     shingle_count = 2
-    permutations = 256
+    permutations = 2048
     top_k = 5
 
     rec_sys = recommendation_system(newsgroups_train["target"], newsgroups_train["data"])
@@ -43,8 +39,12 @@ def main():
     rec_sys.shingle(shingle_count)
     rec_sys.index(permutations)
     rec_sys.lsh_256()
-    sim_articles = rec_sys.query(test_data, top_k)
-    print(sim_articles)
+
+    sim_articles_compilation = list()
+    for data in newsgroups_test["data"]:
+        sim_articles = rec_sys.query(data, top_k)
+        print(sim_articles)
+        sim_articles_compilation.append(sim_articles)
 
 
 if __name__ == "__main__":
