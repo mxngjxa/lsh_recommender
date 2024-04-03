@@ -126,14 +126,19 @@ class recommendation_system:
     def index(self, permutations: int):
         print("MinHashing initiated.")
         self.permutations = permutations
-        self.signature_matrix = np.full((len(self.shingled_data), self.permutations), 0).T
-        print("signature_matrix", self.signature_matrix.shape)
-        print("one_hot_matrix", self.one_hot_matrix.shape)
+        self.signature_matrix = np.full((len(self.shingled_data), self.permutations), 0)
 
         self.one_hot()
         self.perm_matrix()
+        
+        for perm_id in range(self.permutations):
+            for doc_id in range(len(self.shingled_data)):
+                for i in range(len(self.shingle_list)):
+                    s_index = self.perm_matrix[perm_id].index(i)
+                    if self.one_hot_matrix[doc_id, s_index] == 1:
+                        self.signature_matrix[doc_id, perm_id] = self.perm_matrix[perm_id, s_index]
+                        break
 
-        self.minhash
         print("Minhashing processing complete, proceed to LSH.")
 
 
