@@ -92,6 +92,7 @@ class recommendation_system:
     def perm_array(self, array_size):
         """
         Generates a permuation array with length of the total number of shingles.
+        Helper function for perm_matrix
         """
         a = np.arrange(array_size)
         np.random.shuffle(a)
@@ -100,7 +101,7 @@ class recommendation_system:
 
     def perm_matrix(self):
         """
-        Assistant function for index, shuffles matrix along the row. 
+        Creates permutation matrix, with rows as permutations of length equal to number of total shingles.
         """
         self.permutation_matrix = np.full((self.permutations, len(self.shingle_array)), np.nan).T
         for row_id in range(len(self.permutation_matrix)):
@@ -109,6 +110,11 @@ class recommendation_system:
 
 
     def one_hot(self):
+        """
+        One-Hot encode the list of shingled data. Returns self.one_hot_matrix with 
+        rows as documents and colums as one-hot indexes.
+        """
+        self.one_hot_matrix = np.full((len(self.shingled_data), len(self.shingle_array)), 0).T
         for doc_id in range(len(self.shingled_data)):
             for shingle_id in range(len(self.shingle_array)):
                 if self.shingle_array[shingle_id] in self.shingled_data[doc_id][1]:
@@ -121,7 +127,6 @@ class recommendation_system:
         print("MinHashing initiated.")
         self.permutations = permutations
         self.signature_matrix = np.full((len(self.shingled_data), self.permutations), 0).T
-        self.one_hot_matrix = np.full((len(self.shingled_data), len(self.shingle_array)), 0).T
         print("signature_matrix", self.signature_matrix.shape)
         print("one_hot_matrix", self.one_hot_matrix.shape)
 
