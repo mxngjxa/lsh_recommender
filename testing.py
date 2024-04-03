@@ -16,7 +16,8 @@ attributes = dir(newsgroups_train)
 newsgroups_test = fetch_20newsgroups(subset="test", data_home=desired_directory)
 
 #testing number 1
-#print(newsgroups_test["data"][1])
+print(newsgroups_test["data"][0:4])
+print(newsgroups_test["target"][0:4])
 
 
 def init():
@@ -48,4 +49,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    pass
+    #main()
