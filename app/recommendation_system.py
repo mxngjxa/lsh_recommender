@@ -25,12 +25,9 @@ stop_words = set(stopwords.words('english'))
 
 class recommendation_system:
     
-    def __init__(self, group, data):
-        self.index_raw_data = list()
-        i, self.raw_data = group, data
-        for group, data in zip(i, self.raw_data):
-            #remove the sender information and keep this a simple index, data list
-            self.index_raw_data.append([group, data])
+    def __init__(self, data, target):
+        self.raw_data = data
+        self.target = target
 
     def __repr__(self):
         if not hasattr(self, 'preprocessed') or self.preprocessed is None:
@@ -47,17 +44,21 @@ class recommendation_system:
 
     #clean, remove stopwords, and lemmatize data
     def preprocess(self):
+        """
+        Takes in raw data and converts it into a list of lemmatized shingles.
+        """
         print("Preprocessing.")
-        data = self.index_raw_data
-        for i in range(len(data)):
+
+        data = list()
+        for i in range(len(self.raw_data)):
             #remove non-alphanumeric characters
-            data[i][1] = data[i][1].split()
-            for j in range(len(data[i][1])):
-                data[i][1][j] = re.sub(r'\W+', '', data[i][1][j])
+            data[i] = self.raw_data[i].split()
+            for j in range(len(data[i])):
+                data[i][j] = re.sub(r'\W+', '', data[i][j])
             #stopword removed
-            data[i][1] = [w for w in data[i][1] if w not in stop_words]
+            data[i] = [w for w in data[i] if w not in stop_words]
             #lemmatized
-            data[i][1] = [lem.lemmatize(w) for w in data[i][1]]
+            data[i] = [lem.lemmatize(w) for w in data[i]]
         
         self.preprocessed = data
         print("Processing Complete, please apply shingling function.")
@@ -75,14 +76,14 @@ class recommendation_system:
         self.shingle_array = list()
 
         for i in range(len(self.preprocessed)):
-            shingles.append([self.preprocessed[i][0], list()])
-            for j in range(len(self.preprocessed[i][1]) - self.k):
+            shingles.append(list())
+            for j in range(len(self.preprocessed[i]) - self.k):
                 #append new shingle as list
-                shingle_list = self.preprocessed[i][1][j:j+self.k]
+                shingle_list = self.preprocessed[i][j:j+self.k]
                 if shingle_list not in self.shingle_array:
                     self.shingle_array.append(shingle_list)
                 combined = " ".join([t for t in shingle_list])
-                shingles[i][1].append(combined)
+                shingles[i].append(combined)
 
         self.shingled_data = shingles
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
@@ -103,9 +104,9 @@ class recommendation_system:
         """
         Creates permutation matrix, with rows as permutations of length equal to number of total shingles.
         """
-        self.permutation_matrix = np.full((self.permutations, len(self.shingle_array)), np.nan).T
+        self.permutation_matrix = np.full((self.permutations, self.data_count), np.nan).T
         for row_id in range(len(self.permutation_matrix)):
-            self.permutation_matrix[row_id] = perm_array(len(self.shingle_array))
+            self.permutation_matrix[row_id] = perm_array(self.data_count)
         return f"Permutation Matrix Complete with {self.permutation_matrix.shape} (shingles, permutations)"
 
 
@@ -114,9 +115,9 @@ class recommendation_system:
         One-Hot encode the list of shingled data. Returns self.one_hot_matrix with 
         rows as documents and colums as one-hot indexes.
         """
-        self.one_hot_matrix = np.full((len(self.shingled_data), len(self.shingle_array)), 0).T
-        for doc_id in range(len(self.shingled_data)):
-            for shingle_id in range(len(self.shingle_array)):
+        self.one_hot_matrix = np.full((self.data_count, self.data_count), 0).T
+        for doc_id in range(self.data_count):
+            for shingle_id in range(self.data_count):
                 if self.shingle_array[shingle_id] in self.shingled_data[doc_id][1]:
                     self.one_hot_matrix[doc_id, shingle_id] = 1
         return "One-Hot encoding completed"
@@ -124,15 +125,22 @@ class recommendation_system:
 
     #use minhashing to permute data into a signature matrix
     def index(self, permutations: int):
+        """
+        Creates a Signature Matrix with columns as documents and rows as permutation number
+        after applying it to the
+        """
         print("MinHashing initiated.")
         self.permutations = permutations
-        self.signature_matrix = np.full((len(self.shingled_data), self.permutations), 0)
+        self.data_count = len(self.shingled_data)
+        self.total_shingles = len(self.shingle_array)
+
+        self.signature_matrix = np.full((self.data_count, self.permutations), 0)
 
         self.one_hot()
         self.perm_matrix()
         
         for perm_id in range(self.permutations):
-            for doc_id in range(len(self.shingled_data)):
+            for doc_id in range(self.data_count):
                 for i in range(len(self.shingle_list)):
                     s_index = self.perm_matrix[perm_id].index(i)
                     if self.one_hot_matrix[doc_id, s_index] == 1:
@@ -167,18 +175,22 @@ class recommendation_system:
             self.pre_lsh(self.permutations)
         self.lsh_buckets = dict()
 
-        for i in range(len(self.signature_matrix)):
-            category, current = self.signature_matrix[i]
+        np.transpose(self.signature_matrix)
+
+        for doc_id in range(self.data_count):
+            signature_array = self.signature_matrix[doc_id]
+            doc_group = self.target[doc_id]
 
             for band_index in range(self.b):
                 start = band_index * self.r
-                band_key = hashlib.sha256(b"".join([line for line in current[start:start + self.r]])).hexdigest()
+                band_key = hashlib.sha256(b"".join([line for line in signature_array[start:start + self.r]])).hexdigest()
 
                 if band_key in self.lsh_buckets.keys():
-                    self.lsh_buckets[band_key].add(category)
+                    self.lsh_buckets[band_key].add(doc_group)
                 else:
-                    self.lsh_buckets[band_key] = {category}
+                    self.lsh_buckets[band_key] = {doc_group}
         print(f"LSH complete with {self.b} bands and {self.r} rows.")
+        print("lsh bins", self.lsh_buckets)
     
 
     #completes all the previous steps for a unique string and sees which data bucket it would likely fit into.
