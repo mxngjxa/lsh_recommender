@@ -6,7 +6,6 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import numpy as np
 from nltk.tokenize import word_tokenize
-from datasketch import MinHash, MinHashLSH
 try:
     from .optimal_br import OptimalBR
 except:
@@ -48,7 +47,6 @@ class recommendation_system:
         Takes in raw data and converts it into a list of lemmatized shingles.
         """
         print("Preprocessing.")
-
         data = list()
         for i in range(len(self.raw_data)):
             #remove non-alphanumeric characters
@@ -61,7 +59,7 @@ class recommendation_system:
             data[i] = [lem.lemmatize(w) for w in data[i]]
         
         self.preprocessed = data
-        print("Processing Complete, please apply shingling function.")
+        print("Preprocessing Complete, please apply shingling function.")
     
 
     #transform document into shingles
@@ -217,11 +215,21 @@ class recommendation_system:
             combined = " ".join([t for t in shingle_list])
             query_shingles.append(combined)
 
-        #hash data
-        minhash = MinHash(num_perm=self.permutations)
-        for token in query_shingles:
-            minhash.update(token.encode("utf-8"))
-        hash_values = minhash.digest()
+        #one hot encoding
+        one_hot_encoded_list = np.full((self.shingle_count), 0)
+
+        for i in range(len(self.shingle_array)):
+            if self.shingle_array[i] in query_shingles:
+                one_hot_encoded_list[i] = 1
+        
+        #create a mini permutation matrix
+        signature_list = np.full((self.permutations), 0)
+
+        for i in range(self.permutations):
+            for j in range(self.shingle_count):
+                s = np.where(np.isclose(self.permutation_matrix[i], j))[0][0]
+                if one_hot_encoded_list[s] == 1:
+                    signature_list[i] = self.permutation_matrix[i, s]
         
         #apply lsh and hash into lsh_buckets dictionary
         lsh_keys = list()
@@ -297,7 +305,7 @@ def main():
     topK = 5
 
     # Query the recommendation system
-    top_similar_articles = rec_sys.query(query_index, query_text, topK)
+    top_similar_articles = rec_sys.query(query_text, topK)
 
     print("Top similar articles:", top_similar_articles)
 
