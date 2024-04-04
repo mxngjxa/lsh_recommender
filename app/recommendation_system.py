@@ -106,18 +106,16 @@ class recommendation_system:
         Creates permutation matrix, with rows as permutations of length equal to number of total shingles.
         """
         self.permutation_matrix = np.full((self.permutations, self.shingle_count), np.nan)
-        print("self.permutation_matrix shape", self.permutation_matrix.shape)
         for row_id in range(self.permutations):
             self.permutation_matrix[row_id] = self.perm_array(self.shingle_count)
 
 
-    def one_hot(self):
+    def one_hot_encode(self):
         """
         One-Hot encode the list of shingled data. Returns self.one_hot_matrix with 
         rows as documents and colums as one-hot indexes.
         """
         self.one_hot_matrix = np.full((self.doc_count, self.shingle_count), 0)
-        print("one hot matrix size", self.one_hot_matrix.shape)
 
         for doc_id in range(self.doc_count):
             for shingle_id in range(self.shingle_count):
@@ -128,30 +126,28 @@ class recommendation_system:
     #use minhashing to permute data into a signature matrix
     def index(self, permutations: int):
         """
-        Creates a Signature Matrix with columns as documents and rows as permutation number
-        after applying it to the
+        Creates a Signature Matrix with columns as documents and rows as number of permutations 
+        after applying it to the 
         """
         print("MinHashing initiated.")
         self.permutations = permutations
         self.doc_count = len(self.shingled_data)
         self.shingle_count = len(self.shingle_array)
         self.signature_matrix = np.full((self.doc_count, self.permutations), 0)
-        print("signature matrix size", self.signature_matrix.shape)
 
-        self.one_hot()
+        self.one_hot_encode()
         self.generate_permutation_matrix()
         
         for perm_id in range(self.permutations):
             for doc_id in range(self.doc_count):
                 for i in range(self.shingle_count):
-                    #print(i)
+                    #loop through number of shingles for each permutation and find shingle index in order of permutation
                     s_index = np.where(np.isclose(self.permutation_matrix[perm_id], i))[0][0]
-                    #print("sindex, docid, permid", s_index, doc_id, perm_id)
-                    #print("one hot matrix value", self.one_hot_matrix[doc_id, s_index])
+                    #check if shingle at s_index is true in one-hot matrix
                     if self.one_hot_matrix[doc_id, s_index] == 1:
+                        #set signature matrix to this permutation at s_index
                         self.signature_matrix[doc_id, perm_id] = self.permutation_matrix[perm_id, s_index]
                         break
-        print(self.signature_matrix[:20, :20])
         print("Minhashing processing complete, proceed to LSH.")
 
 
@@ -195,7 +191,6 @@ class recommendation_system:
                 else:
                     self.lsh_buckets[band_key] = {doc_group}
         print(f"LSH complete with {self.b} bands and {self.r} rows.")
-        print("lsh bins", self.lsh_buckets)
     
 
     #completes all the previous steps for a unique string and sees which data bucket it would likely fit into.
@@ -295,7 +290,7 @@ def main():
     rec_sys.lsh_256()
 
     # Query text
-    query_text = ["This is a test query document."]
+    query_text = ">Saudi Arabia can be used by the United Ststes to attack Iraq ."
     query_index = "index1"
 
     # Define the value of topK
