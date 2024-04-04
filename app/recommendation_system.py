@@ -105,10 +105,10 @@ class recommendation_system:
         """
         Creates permutation matrix, with rows as permutations of length equal to number of total shingles.
         """
-        self.permutation_matrix = np.full((self.permutations, self.doc_count), np.nan).T
-        print()
-        for row_id in range(len(self.permutation_matrix)):
-            self.permutation_matrix[row_id] = self.perm_array(self.permutations)
+        self.permutation_matrix = np.full((self.permutations, self.shingle_count), np.nan)
+        print("self.permutation_matrix shape", self.permutation_matrix.shape)
+        for row_id in range(self.permutations):
+            self.permutation_matrix[row_id] = self.perm_array(self.shingle_count)
 
 
     def one_hot(self):
@@ -120,8 +120,6 @@ class recommendation_system:
         print("one hot matrix size", self.one_hot_matrix.shape)
 
         for doc_id in range(self.doc_count):
-            print("self.shingled_data[doc_id]", self.shingled_data[doc_id])
-            print("docid", doc_id)
             for shingle_id in range(self.shingle_count):
                 if self.shingle_array[shingle_id] in self.shingled_data[doc_id]:
                     self.one_hot_matrix[doc_id, shingle_id] = 1
@@ -137,9 +135,8 @@ class recommendation_system:
         self.permutations = permutations
         self.doc_count = len(self.shingled_data)
         self.shingle_count = len(self.shingle_array)
-        print(self.doc_count, self.shingle_count, "self.doc_count, self.shingle_count")
-
         self.signature_matrix = np.full((self.doc_count, self.permutations), 0)
+        print("signature matrix size", self.signature_matrix.shape)
 
         self.one_hot()
         self.generate_permutation_matrix()
@@ -147,19 +144,14 @@ class recommendation_system:
         for perm_id in range(self.permutations):
             for doc_id in range(self.doc_count):
                 for i in range(self.shingle_count):
-                    found_index = False
                     #print(i)
-                    s_index = np.where(np.isclose(self.permutation_matrix[perm_id], i))
+                    s_index = np.where(np.isclose(self.permutation_matrix[perm_id], i))[0][0]
                     #print("sindex, docid, permid", s_index, doc_id, perm_id)
-                    s_index = s_index[0][0]
-                    #print("s_index", s_index)
                     #print("one hot matrix value", self.one_hot_matrix[doc_id, s_index])
                     if self.one_hot_matrix[doc_id, s_index] == 1:
                         self.signature_matrix[doc_id, perm_id] = self.permutation_matrix[perm_id, s_index]
-                        found_index = True
                         break
-                    if found_index:
-                        break
+        print(self.signature_matrix[:20, :20])
         print("Minhashing processing complete, proceed to LSH.")
 
 

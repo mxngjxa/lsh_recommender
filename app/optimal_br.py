@@ -11,7 +11,7 @@ class OptimalBR:
         return integrate(lambda t: (1 - t**r)**b, self.t0, 1)[0]
 
     def br(self, n):
-        self.t0 = 0.8
+        self.t0 = 0.5
 
         best_fpr = float('inf')
         best_fnr = float('inf')
