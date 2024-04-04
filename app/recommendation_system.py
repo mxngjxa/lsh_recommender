@@ -64,7 +64,7 @@ class recommendation_system:
     
 
     #transform document into shingles
-    def shingle(self, k: int):
+    def shingle(self):
         """
         Returns self.post_shingle, list of data [index:int, [list_of_shingles]]
         creates self.shingle_array: list of all shingles in the document
@@ -87,7 +87,7 @@ class recommendation_system:
         self.shingle_array = list(self.shingle_set)
         #print("shingled_data", self.post_shingle)
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
-        print(f"Shingling complete with {self.k} tokens.")
+        print(f"Shingling complete.")
 
 
     def perm_array(self, array_size):
@@ -208,10 +208,9 @@ class recommendation_system:
         #shingling data
         query_shingles = list()
 
-        for i in range(len(query_data) - self.k):
-            shingle_list = query_data[i:i+self.k]
-            combined = " ".join([t for t in shingle_list])
-            query_shingles.append(combined)
+        for i in range(len(query_data)):
+            shingle = query_data[i]
+            query_shingles.append(shingle)
 
         #one hot encoding
         one_hot_encoded_list = np.full((self.shingle_count), 0)
