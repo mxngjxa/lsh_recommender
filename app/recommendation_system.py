@@ -70,20 +70,20 @@ class recommendation_system:
         """
         print(f"Applying shingling function with {k} tokens.")
         self.k = k
-        shingles = list()
-        self.shingle_array = list()
+        self.shingled_data = list()
+        self.shingle_set = set()
 
         for i in range(len(self.preprocessed)):
-            shingles.append(list())
+            self.shingled_data.append(list())
             for j in range(len(self.preprocessed[i]) - self.k):
                 #append new shingle as list
                 shingle_list = self.preprocessed[i][j:j+self.k]
                 combined = " ".join([t for t in shingle_list])
-                if combined not in self.shingle_array:
-                    self.shingle_array.append(combined)
-                shingles[i].append(combined)
+                if combined not in self.shingle_set:
+                    self.shingle_set.add(combined)
+                self.shingled_data[i].append(combined)
 
-        self.shingled_data = shingles
+        self.shingle_array = list(self.shingle_set)
         #print("shingled_data", self.shingled_data)
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")

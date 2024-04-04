@@ -35,7 +35,7 @@ def main():
     permutations = 256
     top_k = 5
 
-    rec_sys = recommendation_system(newsgroups_train["target"], newsgroups_train["data"])
+    rec_sys = recommendation_system(newsgroups_train["data"], newsgroups_train["target"])
     rec_sys.preprocess()
     rec_sys.shingle(shingle_count)
     rec_sys.index(permutations)
