@@ -6,6 +6,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import numpy as np
 from nltk.tokenize import word_tokenize
+from sklearn.feature_extraction.text import CountVectorizer
 try:
     from .optimal_br import OptimalBR
 except:
@@ -65,26 +66,28 @@ class recommendation_system:
     #transform document into shingles
     def shingle(self, k: int):
         """
-        Returns self.shingled_data, list of data [index:int, [list_of_shingles]]
+        Returns self.post_shingle, list of data [index:int, [list_of_shingles]]
         creates self.shingle_array: list of all shingles in the document
         """
         print(f"Applying shingling function with {k} tokens.")
         self.k = k
-        self.shingled_data = list()
+        self.post_shingle = list()
         self.shingle_set = set()
 
         for i in range(len(self.preprocessed)):
-            self.shingled_data.append(list())
+            self.post_shingle.append(list())
             for j in range(len(self.preprocessed[i]) - self.k):
                 #append new shingle as list
                 shingle_list = self.preprocessed[i][j:j+self.k]
                 combined = " ".join([t for t in shingle_list])
                 if combined not in self.shingle_set:
                     self.shingle_set.add(combined)
-                self.shingled_data[i].append(combined)
+                self.post_shingle[i].append(combined)
+        
+        self.post_shingle = [" ".join(doc) for doc in self.post_shingle]
 
         self.shingle_array = list(self.shingle_set)
-        #print("shingled_data", self.shingled_data)
+        #print("shingled_data", self.post_shingle)
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")
 
@@ -113,12 +116,9 @@ class recommendation_system:
         One-Hot encode the list of shingled data. Returns self.one_hot_matrix with 
         rows as documents and colums as one-hot indexes.
         """
-        self.one_hot_matrix = np.full((self.doc_count, self.shingle_count), 0)
+        count_vectorizer = CountVectorizer(vocabulary = self.shingle_array, binary = True)
 
-        for doc_id in range(self.doc_count):
-            for shingle_id in range(self.shingle_count):
-                if self.shingle_array[shingle_id] in self.shingled_data[doc_id]:
-                    self.one_hot_matrix[doc_id, shingle_id] = 1
+        self.one_hot_matrix = count_vectorizer.fit_transform(self.post_shingle)
 
 
     #use minhashing to permute data into a signature matrix
@@ -129,7 +129,7 @@ class recommendation_system:
         """
         print("MinHashing initiated.")
         self.permutations = permutations
-        self.doc_count = len(self.shingled_data)
+        self.doc_count = len(self.post_shingle)
         self.shingle_count = len(self.shingle_array)
         self.signature_matrix = np.full((self.doc_count, self.permutations), 0)
 
