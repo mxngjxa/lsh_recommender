@@ -52,7 +52,7 @@ class recommendation_system:
         data = list()
         for i in range(len(self.raw_data)):
             #remove non-alphanumeric characters
-            data[i] = self.raw_data[i].split()
+            data.append(self.raw_data[i].split())
             for j in range(len(data[i])):
                 data[i][j] = re.sub(r'\W+', '', data[i][j])
             #stopword removed
@@ -80,12 +80,13 @@ class recommendation_system:
             for j in range(len(self.preprocessed[i]) - self.k):
                 #append new shingle as list
                 shingle_list = self.preprocessed[i][j:j+self.k]
-                if shingle_list not in self.shingle_array:
-                    self.shingle_array.append(shingle_list)
                 combined = " ".join([t for t in shingle_list])
+                if combined not in self.shingle_array:
+                    self.shingle_array.append(combined)
                 shingles[i].append(combined)
 
         self.shingled_data = shingles
+        #print("shingled_data", self.shingled_data)
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
         print(f"Shingling complete with {self.k} tokens.")
 
@@ -93,21 +94,21 @@ class recommendation_system:
     def perm_array(self, array_size):
         """
         Generates a permuation array with length of the total number of shingles.
-        Helper function for perm_matrix
+        Helper function for generate_permutation_matrix
         """
-        a = np.arrange(array_size)
+        a = np.arange(array_size)
         np.random.shuffle(a)
         return a
 
 
-    def perm_matrix(self):
+    def generate_permutation_matrix(self):
         """
         Creates permutation matrix, with rows as permutations of length equal to number of total shingles.
         """
-        self.permutation_matrix = np.full((self.permutations, self.data_count), np.nan).T
+        self.permutation_matrix = np.full((self.permutations, self.doc_count), np.nan).T
+        print()
         for row_id in range(len(self.permutation_matrix)):
-            self.permutation_matrix[row_id] = perm_array(self.data_count)
-        return f"Permutation Matrix Complete with {self.permutation_matrix.shape} (shingles, permutations)"
+            self.permutation_matrix[row_id] = self.perm_array(self.permutations)
 
 
     def one_hot(self):
@@ -115,12 +116,15 @@ class recommendation_system:
         One-Hot encode the list of shingled data. Returns self.one_hot_matrix with 
         rows as documents and colums as one-hot indexes.
         """
-        self.one_hot_matrix = np.full((self.data_count, self.data_count), 0).T
-        for doc_id in range(self.data_count):
-            for shingle_id in range(self.data_count):
-                if self.shingle_array[shingle_id] in self.shingled_data[doc_id][1]:
+        self.one_hot_matrix = np.full((self.doc_count, self.shingle_count), 0)
+        print("one hot matrix size", self.one_hot_matrix.shape)
+
+        for doc_id in range(self.doc_count):
+            print("self.shingled_data[doc_id]", self.shingled_data[doc_id])
+            print("docid", doc_id)
+            for shingle_id in range(self.shingle_count):
+                if self.shingle_array[shingle_id] in self.shingled_data[doc_id]:
                     self.one_hot_matrix[doc_id, shingle_id] = 1
-        return "One-Hot encoding completed"
 
 
     #use minhashing to permute data into a signature matrix
@@ -131,22 +135,31 @@ class recommendation_system:
         """
         print("MinHashing initiated.")
         self.permutations = permutations
-        self.data_count = len(self.shingled_data)
-        self.total_shingles = len(self.shingle_array)
+        self.doc_count = len(self.shingled_data)
+        self.shingle_count = len(self.shingle_array)
+        print(self.doc_count, self.shingle_count, "self.doc_count, self.shingle_count")
 
-        self.signature_matrix = np.full((self.data_count, self.permutations), 0)
+        self.signature_matrix = np.full((self.doc_count, self.permutations), 0)
 
         self.one_hot()
-        self.perm_matrix()
+        self.generate_permutation_matrix()
         
         for perm_id in range(self.permutations):
-            for doc_id in range(self.data_count):
-                for i in range(len(self.shingle_list)):
-                    s_index = self.perm_matrix[perm_id].index(i)
+            for doc_id in range(self.doc_count):
+                for i in range(self.shingle_count):
+                    found_index = False
+                    #print(i)
+                    s_index = np.where(np.isclose(self.permutation_matrix[perm_id], i))
+                    #print("sindex, docid, permid", s_index, doc_id, perm_id)
+                    s_index = s_index[0][0]
+                    #print("s_index", s_index)
+                    #print("one hot matrix value", self.one_hot_matrix[doc_id, s_index])
                     if self.one_hot_matrix[doc_id, s_index] == 1:
-                        self.signature_matrix[doc_id, perm_id] = self.perm_matrix[perm_id, s_index]
+                        self.signature_matrix[doc_id, perm_id] = self.permutation_matrix[perm_id, s_index]
+                        found_index = True
                         break
-
+                    if found_index:
+                        break
         print("Minhashing processing complete, proceed to LSH.")
 
 
@@ -177,7 +190,7 @@ class recommendation_system:
 
         np.transpose(self.signature_matrix)
 
-        for doc_id in range(self.data_count):
+        for doc_id in range(self.doc_count):
             signature_array = self.signature_matrix[doc_id]
             doc_group = self.target[doc_id]
 
@@ -262,11 +275,17 @@ class recommendation_system:
 
 def main():
     # Sample raw data
-    raw_data = ['From: v064mb9k@ubvmsd.cc.buffalo.edu (NEIL B. GANDLER)\nSubject: Need info on 88-89 Bonneville\nOrganization: University at Buffalo\nLines: 10\nNews-Software: VAX/VMS VNEWS 1.41\nNntp-Posting-Host: ubvmsd.cc.buffalo.edu\n\n\n I am a little confused on all of the models of the 88-89 bonnevilles.\nI have heard of the LE SE LSE SSE SSEI. Could someone tell me the\ndifferences are far as features or performance. I am also curious to\nknow what the book value is for prefereably the 89 model. And how much\nless than book value can you usually get them for. In other words how\nmuch are they in demand this time of year. I have heard that the mid-spring\nearly summer is the best time to buy.\n\n\t\t\tNeil Gandler\n', 'From: Rick Miller <rick@ee.uwm.edu>\nSubject: X-Face?\nOrganization: Just me.\nLines: 17\nDistribution: world\nNNTP-Posting-Host: 129.89.2.33\nSummary: Go ahead... swamp me.  <EEP!>\n\nI\'m not familiar at all with the format of these "X-Face:" thingies, but\nafter seeing them in some folks\' headers, I\'ve *got* to *see* them (and\nmaybe make one of my own)!\n\nI\'ve got "dpg-view" on my Linux box (which displays "uncompressed X-Faces")\nand I\'ve managed to compile [un]compface too... but now that I\'m *looking*\nfor them, I can\'t seem to find any X-Face:\'s in anyones news headers!  :-(\n\nCould you, would you, please send me your "X-Face:" header?\n\nI *know* I\'ll probably get a little swamped, but I can handle it.\n\n\t...I hope.\n\nRick Miller  <rick@ee.uwm.edu> | <ricxjo@discus.mil.wi.us>   Ricxjo Muelisto\nSend a postcard, get one back! | Enposxtigu bildkarton kaj vi ricevos alion!\n          RICK MILLER // 16203 WOODS // MUSKEGO, WIS. 53150 // USA\n', 'From: mathew <mathew@mantis.co.uk>\nSubject: Re: STRONG & weak Atheism\nOrganization: Mantis Consultants, Cambridge. UK.\nX-Newsreader: rusnews v1.02\nLines: 9\n\nacooper@mac.cc.macalstr.edu (Turin Turambar, ME Department of Utter Misery) writes:\n> Did that FAQ ever got modified to re-define strong atheists as not those who\n> assert the nonexistence of God, but as those who assert that they BELIEVE in \n> the nonexistence of God?\n\nIn a word, yes.\n\n\nmathew\n', 'From: bakken@cs.arizona.edu (Dave Bakken)\nSubject: Re: Saudi clergy condemns debut of human rights group!\nKeywords: international, non-usa government, government, civil rights, \tsocial issues, politics\nOrganization: U of Arizona CS Dept, Tucson\nLines: 101\n\nIn article <benali.737307554@alcor> benali@alcor.concordia.ca ( ILYESS B. BDIRA ) writes:\n>It looks like Ben Baz\'s mind and heart are also blind, not only his eyes.\n>I used to respect him, today I lost the minimal amount of respect that\n>I struggled to keep for him.\n>To All Muslim netters: This is the same guy who gave a "Fatwah" that\n>Saudi Arabia can be used by the United Ststes to attack Iraq . \n\nThey were attacking the Iraqis to drive them out of Kuwait,\na country whose citizens have close blood and business ties\nto Saudi citizens.  And me thinks if the US had not helped out\nthe Iraqis would have swallowed Saudi Arabia, too (or at \nleast the eastern oilfields).  And no Muslim country was doing\nmuch of anything to help liberate Kuwait and protect Saudi\nArabia; indeed, in some masses of citizens were demonstrating\nin favor of that butcher Saddam (who killed lotsa Muslims),\njust because he was killing, raping, and looting relatively\nrich Muslims and also thumbing his nose at the West.\n\nSo how would have *you* defended Saudi Arabia and rolled\nback the Iraqi invasion, were you in charge of Saudi Arabia???\n\n>Fatwah is as legitimate as this one. With that kind of "Clergy", it might\n>be an Islamic duty to separate religion and politics, if religion\n>means "official Clergy".\n\nI think that it is a very good idea to not have governments have an\nofficial religion (de facto or de jure), because with human nature\nlike it is, the ambitious and not the pious will always be the\nones who rise to power.  There are just too many people in this\nworld (or any country) for the citizens to really know if a \nleader is really devout or if he is just a slick operator.\n\n>\n>  \tCAIRO, Egypt (UPI) -- The Cairo-based Arab Organization for Human\n>  Rights (AOHR) Thursday welcomed the establishement last week of the\n>  Committee for Defense of Legal Rights in Saudi Arabia and said it was\n>  necessary to have such groups operating in all Arab countries.\n\nYou make it sound like these guys are angels, Ilyess.  (In your\nclarinet posting you edited out some stuff; was it the following???)\nFriday\'s New York Times reported that this group definitely is\nmore conservative than even Sheikh Baz and his followers (who\nthink that the House of Saud does not rule the country conservatively\nenough).  The NYT reported that, besides complaining that the\ngovernment was not conservative enough, they have:\n\n\t- asserted that the (approx. 500,000) Shiites in the Kingdom\n\t  are apostates, a charge that under Saudi (and Islamic) law\n\t  brings the death penalty.  \n\n\t  Diplomatic guy (Sheikh bin Jibrin), isn\'t he Ilyess?\n\n\t- called for severe punishment of the 40 or so women who\n\t  drove in public a while back to protest the ban on\n\t  women driving.  The guy from the group who said this,\n\t  Abdelhamoud al-Toweijri, said that these women should\n\t  be fired from their jobs, jailed, and branded as\n\t  prostitutes.\n\n\t  Is this what you want to see happen, Ilyess?  I\'ve\n\t  heard many Muslims say that the ban on women driving\n\t  has no basis in the Qur\'an, the ahadith, etc.\n\t  Yet these folks not only like the ban, they want\n\t  these women falsely called prostitutes?  \n\n\t  If I were you, I\'d choose my heroes wisely,\n\t  Ilyess, not just reflexively rally behind\n\t  anyone who hates anyone you hate.\n\n\t- say that women should not be allowed to work.\n\n\t- say that TV and radio are too immoral in the Kingdom.\n\nNow, the House of Saud is neither my least nor my most favorite government\non earth; I think they restrict religious and political reedom a lot, among\nother things.  I just think that the most likely replacements\nfor them are going to be a lot worse for the citizens of the country.\nBut I think the House of Saud is feeling the heat lately.  In the\nlast six months or so I\'ve read there have been stepped up harassing\nby the muttawain (religious police---*not* government) of Western women\nnot fully veiled (something stupid for women to do, IMO, because it\nsends the wrong signals about your morality).  And I\'ve read that\nthey\'ve cracked down on the few, home-based expartiate religious\ngatherings, and even posted rewards in (government-owned) newspapers\noffering money for anyone who turns in a group of expartiates who\ndare worship in their homes or any other secret place. So the\ngovernment has grown even more intolerant to try to take some of\nthe wind out of the sails of the more-conservative opposition.\nAs unislamic as some of these things are, they\'re just a small\ntaste of what would happen if these guys overthrow the House of\nSaud, like they\'re trying to in the long run.\n\nIs this really what you (and Rached and others in the general\nwest-is-evil-zionists-rule-hate-west-or-you-are-a-puppet crowd)\nwant, Ilyess?\n\n--\nDave Bakken\n==>"the President is doing a fine job, but the problem is we don\'t know what\n    to do with her husband." James Carville (Clinton campaign strategist),2/93\n==>"Oh, please call Daddy. Mom\'s far too busy."  Chelsea to nurse, CSPAN, 2/93\n']
+    raw_data = ['From: v064mb9k@ubvmsd.cc.buffalo.edu (NEIL B. GANDLER)\nSubject: Need info on 88-89 Bonneville\nOrganization: University at Buffalo\nLines: 10\nNews-Software: VAX/VMS VNEWS 1.41\nNntp-Posting-Host: ubvmsd.cc.buffalo.edu\n\n\n I am a little confused on all of the models of the 88-89 bonnevilles.\nI have heard of the LE SE LSE SSE SSEI. Could someone tell me the\ndifferences are far as features or performance. I am also curious to\nknow what the book value is for prefereably the 89 model. And how much\nless than book value can you usually get them for. In other words how\nmuch are they in demand this time of year. I have heard that the mid-spring\nearly summer is the best time to buy.\n\n\t\t\tNeil Gandler\n', 
+
+                'From: Rick Miller <rick@ee.uwm.edu>\nSubject: X-Face?\nOrganization: Just me.\nLines: 17\nDistribution: world\nNNTP-Posting-Host: 129.89.2.33\nSummary: Go ahead... swamp me.  <EEP!>\n\nI\'m not familiar at all with the format of these "X-Face:" thingies, but\nafter seeing them in some folks\' headers, I\'ve *got* to *see* them (and\nmaybe make one of my own)!\n\nI\'ve got "dpg-view" on my Linux box (which displays "uncompressed X-Faces")\nand I\'ve managed to compile [un]compface too... but now that I\'m *looking*\nfor them, I can\'t seem to find any X-Face:\'s in anyones news headers!  :-(\n\nCould you, would you, please send me your "X-Face:" header?\n\nI *know* I\'ll probably get a little swamped, but I can handle it.\n\n\t...I hope.\n\nRick Miller  <rick@ee.uwm.edu> | <ricxjo@discus.mil.wi.us>   Ricxjo Muelisto\nSend a postcard, get one back! | Enposxtigu bildkarton kaj vi ricevos alion!\n          RICK MILLER // 16203 WOODS // MUSKEGO, WIS. 53150 // USA\n', 
+
+                'From: mathew <mathew@mantis.co.uk>\nSubject: Re: STRONG & weak Atheism\nOrganization: Mantis Consultants, Cambridge. UK.\nX-Newsreader: rusnews v1.02\nLines: 9\n\nacooper@mac.cc.macalstr.edu (Turin Turambar, ME Department of Utter Misery) writes:\n> Did that FAQ ever got modified to re-define strong atheists as not those who\n> assert the nonexistence of God, but as those who assert that they BELIEVE in \n> the nonexistence of God?\n\nIn a word, yes.\n\n\nmathew\n', 
+
+                'From: bakken@cs.arizona.edu (Dave Bakken)\nSubject: Re: Saudi clergy condemns debut of human rights group!\nKeywords: international, non-usa government, government, civil rights, \tsocial issues, politics\nOrganization: U of Arizona CS Dept, Tucson\nLines: 101\n\nIn article <benali.737307554@alcor> benali@alcor.concordia.ca ( ILYESS B. BDIRA ) writes:\n>It looks like Ben Baz\'s mind and heart are also blind, not only his eyes.\n>I used to respect him, today I lost the minimal amount of respect that\n>I struggled to keep for him.\n>To All Muslim netters: This is the same guy who gave a "Fatwah" that\n>Saudi Arabia can be used by the United Ststes to attack Iraq . \n\nThey were attacking the Iraqis to drive them out of Kuwait,\na country whose citizens have close blood and business ties\nto Saudi citizens.  And me thinks if the US had not helped out\nthe Iraqis would have swallowed Saudi Arabia, too (or at \nleast the eastern oilfields).  And no Muslim country was doing\nmuch of anything to help liberate Kuwait and protect Saudi\nArabia; indeed, in some masses of citizens were demonstrating\nin favor of that butcher Saddam (who killed lotsa Muslims),\njust because he was killing, raping, and looting relatively\nrich Muslims and also thumbing his nose at the West.\n\nSo how would have *you* defended Saudi Arabia and rolled\nback the Iraqi invasion, were you in charge of Saudi Arabia???\n\n>Fatwah is as legitimate as this one. With that kind of "Clergy", it might\n>be an Islamic duty to separate religion and politics, if religion\n>means "official Clergy".\n\nI think that it is a very good idea to not have governments have an\nofficial religion (de facto or de jure), because with human nature\nlike it is, the ambitious and not the pious will always be the\nones who rise to power.  There are just too many people in this\nworld (or any country) for the citizens to really know if a \nleader is really devout or if he is just a slick operator.\n\n>\n>  \tCAIRO, Egypt (UPI) -- The Cairo-based Arab Organization for Human\n>  Rights (AOHR) Thursday welcomed the establishement last week of the\n>  Committee for Defense of Legal Rights in Saudi Arabia and said it was\n>  necessary to have such groups operating in all Arab countries.\n\nYou make it sound like these guys are angels, Ilyess.  (In your\nclarinet posting you edited out some stuff; was it the following???)\nFriday\'s New York Times reported that this group definitely is\nmore conservative than even Sheikh Baz and his followers (who\nthink that the House of Saud does not rule the country conservatively\nenough).  The NYT reported that, besides complaining that the\ngovernment was not conservative enough, they have:\n\n\t- asserted that the (approx. 500,000) Shiites in the Kingdom\n\t  are apostates, a charge that under Saudi (and Islamic) law\n\t  brings the death penalty.  \n\n\t  Diplomatic guy (Sheikh bin Jibrin), isn\'t he Ilyess?\n\n\t- called for severe punishment of the 40 or so women who\n\t  drove in public a while back to protest the ban on\n\t  women driving.  The guy from the group who said this,\n\t  Abdelhamoud al-Toweijri, said that these women should\n\t  be fired from their jobs, jailed, and branded as\n\t  prostitutes.\n\n\t  Is this what you want to see happen, Ilyess?  I\'ve\n\t  heard many Muslims say that the ban on women driving\n\t  has no basis in the Qur\'an, the ahadith, etc.\n\t  Yet these folks not only like the ban, they want\n\t  these women falsely called prostitutes?  \n\n\t  If I were you, I\'d choose my heroes wisely,\n\t  Ilyess, not just reflexively rally behind\n\t  anyone who hates anyone you hate.\n\n\t- say that women should not be allowed to work.\n\n\t- say that TV and radio are too immoral in the Kingdom.\n\nNow, the House of Saud is neither my least nor my most favorite government\non earth; I think they restrict religious and political reedom a lot, among\nother things.  I just think that the most likely replacements\nfor them are going to be a lot worse for the citizens of the country.\nBut I think the House of Saud is feeling the heat lately.  In the\nlast six months or so I\'ve read there have been stepped up harassing\nby the muttawain (religious police---*not* government) of Western women\nnot fully veiled (something stupid for women to do, IMO, because it\nsends the wrong signals about your morality).  And I\'ve read that\nthey\'ve cracked down on the few, home-based expartiate religious\ngatherings, and even posted rewards in (government-owned) newspapers\noffering money for anyone who turns in a group of expartiates who\ndare worship in their homes or any other secret place. So the\ngovernment has grown even more intolerant to try to take some of\nthe wind out of the sails of the more-conservative opposition.\nAs unislamic as some of these things are, they\'re just a small\ntaste of what would happen if these guys overthrow the House of\nSaud, like they\'re trying to in the long run.\n\nIs this really what you (and Rached and others in the general\nwest-is-evil-zionists-rule-hate-west-or-you-are-a-puppet crowd)\nwant, Ilyess?\n\n--\nDave Bakken\n==>"the President is doing a fine job, but the problem is we don\'t know what\n    to do with her husband." James Carville (Clinton campaign strategist),2/93\n==>"Oh, please call Daddy. Mom\'s far too busy."  Chelsea to nurse, CSPAN, 2/93\n']
     index = [7, 5, 0, 17]
 
     # Instantiate recommendation system with sample data
-    rec_sys = recommendation_system(index, raw_data)
+    rec_sys = recommendation_system(raw_data, index)
 
     # Perform preprocessing
     rec_sys.preprocess()
