@@ -232,11 +232,12 @@ class recommendation_system:
                     signature_list[i] = self.permutation_matrix[i, s]
         
         #apply lsh and hash into lsh_buckets dictionary
-        lsh_keys = list()
+        lsh_keys = set()
+
         for band_index in range(self.b):
             start = band_index * self.r
-            band_key = hashlib.sha256(b"".join([line for line in hash_values[start:start + self.r]])).hexdigest()
-            lsh_keys.append(band_key)
+            band_key = hashlib.sha256(b"".join([line for line in signature_list[start:start + self.r]])).hexdigest()
+            lsh_keys.add(band_key)
         print(lsh_keys)
         
         # Find candidates using LSH
@@ -254,16 +255,15 @@ class recommendation_system:
 
         # Iterate over each item in the large dataset LSH buckets
         for key, bucket in self.lsh_buckets.items():
-            if query_keys == key:
+            if key in query_keys:
                 for item in bucket:
                     if item not in candidates.keys():
                         candidates[item] = 1
                     else:
                         candidates[item] += 1
         
-        # Sort the candidates by Jaccard similarity in descending order
+        # Sort the candidates in descending order
         sorted_candidates = sorted(list(candidates.items()), key=lambda x: x[1], reverse=True)
-        print("Sorted Candidates", sorted_candidates)
 
         return sorted_candidates
 
@@ -299,7 +299,6 @@ def main():
 
     # Query text
     query_text = ">Saudi Arabia can be used by the United Ststes to attack Iraq ."
-    query_index = "index1"
 
     # Define the value of topK
     topK = 5
