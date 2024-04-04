@@ -69,20 +69,18 @@ class recommendation_system:
         Returns self.post_shingle, list of data [index:int, [list_of_shingles]]
         creates self.shingle_array: list of all shingles in the document
         """
-        print(f"Applying shingling function with {k} tokens.")
-        self.k = k
+        print(f"Applying shingling function.")
         self.post_shingle = list()
         self.shingle_set = set()
 
         for i in range(len(self.preprocessed)):
             self.post_shingle.append(list())
-            for j in range(len(self.preprocessed[i]) - self.k):
+            for j in range(len(self.preprocessed[i])):
                 #append new shingle as list
-                shingle_list = self.preprocessed[i][j:j+self.k]
-                combined = " ".join([t for t in shingle_list])
+                shingle = self.preprocessed[i][j]
                 if combined not in self.shingle_set:
-                    self.shingle_set.add(combined)
-                self.post_shingle[i].append(combined)
+                    self.shingle_set.add(shingle)
+                self.post_shingle[i].append(shingle)
         
         self.post_shingle = [" ".join(doc) for doc in self.post_shingle]
 
