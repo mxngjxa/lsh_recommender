@@ -12,22 +12,23 @@ try:
 except:
     from optimal_br import OptimalBR
 
+def init():
+    lem = WordNetLemmatizer()
 
-lem = WordNetLemmatizer()
+    # Set the NLTK_DATA environment variable to the desired directory
+    current_directory = os.getcwd()
+    desired_directory = f'{current_directory}/.venv/nltk_data'
 
-# Set the NLTK_DATA environment variable to the desired directory
-current_directory = os.getcwd()
-desired_directory = f'{current_directory}/.venv/nltk_data'
-
-nltk.download('stopwords', download_dir=desired_directory)
-nltk.download('wordnet', download_dir=desired_directory)
-stop_words = set(stopwords.words('english'))
+    nltk.download('stopwords', download_dir=desired_directory)
+    nltk.download('wordnet', download_dir=desired_directory)
+    stop_words = set(stopwords.words('english'))
 
 class recommendation_system:
     
     def __init__(self, data, target):
         self.raw_data = data
         self.target = target
+        init()
 
     def __repr__(self):
         if not hasattr(self, 'preprocessed') or self.preprocessed is None:
@@ -78,7 +79,7 @@ class recommendation_system:
             for j in range(len(self.preprocessed[i])):
                 #append new shingle as list
                 shingle = self.preprocessed[i][j]
-                if combined not in self.shingle_set:
+                if shingle not in self.shingle_set:
                     self.shingle_set.add(shingle)
                 self.post_shingle[i].append(shingle)
         
@@ -200,7 +201,7 @@ class recommendation_system:
         for i in range(len(query_data)):
             query_data[i] = re.sub(r'\W+', '', query_data[i])
         #stopword removed
-        query_data = [w for w in query_data if w not in stop_words]
+        query_data = [w.lower() for w in query_data if w not in stop_words]
         #lemmatized
         query_data = [lem.lemmatize(w) for w in query_data]
 
