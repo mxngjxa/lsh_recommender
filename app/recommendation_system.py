@@ -5,30 +5,30 @@ import hashlib
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import numpy as np
+import pandas as pd
 from nltk.tokenize import word_tokenize
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.preprocessing import MultiLabelBinarizer
 try:
     from .optimal_br import OptimalBR
 except:
     from optimal_br import OptimalBR
 
-def init():
-    lem = WordNetLemmatizer()
 
-    # Set the NLTK_DATA environment variable to the desired directory
-    current_directory = os.getcwd()
-    desired_directory = f'{current_directory}/.venv/nltk_data'
+lem = WordNetLemmatizer()
 
-    nltk.download('stopwords', download_dir=desired_directory)
-    nltk.download('wordnet', download_dir=desired_directory)
-    stop_words = set(stopwords.words('english'))
+# Set the NLTK_DATA environment variable to the desired directory
+current_directory = os.getcwd()
+desired_directory = f'{current_directory}/.venv/nltk_data'
+
+nltk.download('stopwords', download_dir=desired_directory)
+nltk.download('wordnet', download_dir=desired_directory)
+stop_words = set(stopwords.words('english'))
 
 class recommendation_system:
     
     def __init__(self, data, target):
         self.raw_data = data
         self.target = target
-        init()
 
     def __repr__(self):
         if not hasattr(self, 'preprocessed') or self.preprocessed is None:
@@ -65,26 +65,26 @@ class recommendation_system:
     
 
     #transform document into shingles
-    def shingle(self):
+    def shingle(self, k):
         """
         Returns self.post_shingle, list of data [index:int, [list_of_shingles]]
         creates self.shingle_array: list of all shingles in the document
         """
+        self.k = k
         print(f"Applying shingling function.")
         self.post_shingle = list()
         self.shingle_set = set()
 
         for i in range(len(self.preprocessed)):
             self.post_shingle.append(list())
-            for j in range(len(self.preprocessed[i])):
+            for j in range(len(self.preprocessed[i]) - self.k):
                 #append new shingle as list
-                shingle = self.preprocessed[i][j]
+                shingle_list = self.preprocessed[i][j:j + self.k]
+                shingle = " ".join([s for s in shingle_list])
                 if shingle not in self.shingle_set:
                     self.shingle_set.add(shingle)
                 self.post_shingle[i].append(shingle)
         
-        self.post_shingle = [" ".join(doc) for doc in self.post_shingle]
-
         self.shingle_array = list(self.shingle_set)
         #print("shingled_data", self.post_shingle)
         #[[0, ['This first document', 'first document sure']], [1, ['This document second', 'document second document', 'second document whatever']]]
@@ -105,20 +105,30 @@ class recommendation_system:
         """
         Creates permutation matrix, with rows as permutations of length equal to number of total shingles.
         """
-        self.permutation_matrix = np.full((self.permutations, self.shingle_count), np.nan)
+        pm = np.full((self.permutations, self.shingle_count), np.nan)
         for row_id in range(self.permutations):
-            self.permutation_matrix[row_id] = self.perm_array(self.shingle_count)
+            pm[row_id] = self.perm_array(self.shingle_count)
+        
+        self.permutation_matrix = pd.DataFrame(pm)
 
+        print("Permutation Matrix Generated")
+        print(self.permutation_matrix)
 
     def one_hot_encode(self):
         """
         One-Hot encode the list of shingled data. Returns self.one_hot_matrix with 
         rows as documents and colums as one-hot indexes.
         """
-        count_vectorizer = CountVectorizer(vocabulary = self.shingle_array, binary = True)
+        pd_data = pd.Series(self.post_shingle)
+        
+        mlb = MultiLabelBinarizer()
 
-        self.one_hot_matrix = count_vectorizer.fit_transform(self.post_shingle)
-
+        res = pd.DataFrame(mlb.fit_transform(pd_data),
+                        columns=mlb.classes_,
+                        index=pd_data.index)
+        print("One-Hot Encoding Complete")
+        print(res)
+        return res
 
     #use minhashing to permute data into a signature matrix
     def index(self, permutations: int):
@@ -130,21 +140,20 @@ class recommendation_system:
         self.permutations = permutations
         self.doc_count = len(self.post_shingle)
         self.shingle_count = len(self.shingle_array)
-        self.signature_matrix = np.full((self.doc_count, self.permutations), 0)
+        self.signature_matrix = pd.DataFrame(index=range(self.permutations), columns=range(self.doc_count))
 
-        self.one_hot_encode()
+        self.one_hot = self.one_hot_encode()
         self.generate_permutation_matrix()
         
-        for perm_id in range(self.permutations):
-            for doc_id in range(self.doc_count):
-                for i in range(self.shingle_count):
-                    #loop through number of shingles for each permutation and find shingle index in order of permutation
-                    s_index = np.where(np.isclose(self.permutation_matrix[perm_id], i))[0][0]
-                    #check if shingle at s_index is true in one-hot matrix
-                    if self.one_hot_matrix[doc_id, s_index] == 1:
-                        #set signature matrix to this permutation at s_index
-                        self.signature_matrix[doc_id, perm_id] = self.permutation_matrix[perm_id, s_index]
+        self.signature_matrix = self.signature_matrix.astype(float)  # Ensure the dtype is float for NaN
+        for doc_id in range(self.doc_count):
+            for perm_id, perm_row in self.permutation_matrix.iterrows():
+                shingle_index = perm_row[doc_id]
+                for shingle_col in self.one_hot.columns:
+                    if self.one_hot.at[doc_id, shingle_col] == 1:
+                        self.signature_matrix.at[perm_id, doc_id] = shingle_index
                         break
+        print(self.signature_matrix)
         print("Minhashing processing complete, proceed to LSH.")
 
 
