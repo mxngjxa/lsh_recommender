@@ -109,10 +109,12 @@ class recommendation_system:
         for row_id in range(self.permutations):
             pm[row_id] = self.perm_array(self.shingle_count)
         
-        self.permutation_matrix = pd.DataFrame(pm)
+        pm = pd.DataFrame(pm)
 
+        #print(self.permutation_matrix)
         print("Permutation Matrix Generated")
-        print(self.permutation_matrix)
+        return pm
+
 
     def one_hot_encode(self):
         """
@@ -126,8 +128,9 @@ class recommendation_system:
         res = pd.DataFrame(mlb.fit_transform(pd_data),
                         columns=mlb.classes_,
                         index=pd_data.index)
+
+        #print(res)
         print("One-Hot Encoding Complete")
-        print(res)
         return res
 
     #use minhashing to permute data into a signature matrix
@@ -138,21 +141,26 @@ class recommendation_system:
         """
         print("MinHashing initiated.")
         self.permutations = permutations
+        
+        #set some variables for easy iteration
         self.doc_count = len(self.post_shingle)
         self.shingle_count = len(self.shingle_array)
+
+        #generate signature matrix and correct type
         self.signature_matrix = pd.DataFrame(index=range(self.permutations), columns=range(self.doc_count))
 
+
         self.one_hot = self.one_hot_encode()
-        self.generate_permutation_matrix()
+        self.perm_matrix = self.generate_permutation_matrix()
         
-        self.signature_matrix = self.signature_matrix.astype(float)  # Ensure the dtype is float for NaN
         for doc_id in range(self.doc_count):
-            for perm_id, perm_row in self.permutation_matrix.iterrows():
+            for perm_id, perm_row in self.perm_matrix.iterrows():
                 shingle_index = perm_row[doc_id]
                 for shingle_col in self.one_hot.columns:
                     if self.one_hot.at[doc_id, shingle_col] == 1:
                         self.signature_matrix.at[perm_id, doc_id] = shingle_index
                         break
+        self.signature_matrix = self.signature_matrix.astype(int)
         print(self.signature_matrix)
         print("Minhashing processing complete, proceed to LSH.")
 
@@ -181,8 +189,6 @@ class recommendation_system:
         #simply automatically calculate the numebr of b and r using the function
             self.pre_lsh(self.permutations)
         self.lsh_buckets = dict()
-
-        np.transpose(self.signature_matrix)
 
         for doc_id in range(self.doc_count):
             signature_array = self.signature_matrix[doc_id]
