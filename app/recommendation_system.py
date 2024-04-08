@@ -191,13 +191,12 @@ class recommendation_system:
         self.lsh_buckets = dict()
 
         for doc_id in range(self.doc_count):
-            signature_array = self.signature_matrix[doc_id]
+            signature_array = [x for x in self.signature_matrix[doc_id]]
             doc_group = self.target[doc_id]
 
             for band_index in range(self.b):
                 start = band_index * self.r
-                band_key = hashlib.sha256(b"".join([line for line in signature_array[start:start + self.r]])).hexdigest()
-
+                band_key = hashlib.sha256("".join([str(line) for line in signature_array[start:start + self.r]]).encode('utf-8')).hexdigest()
                 if band_key in self.lsh_buckets.keys():
                     self.lsh_buckets[band_key].add(doc_group)
                 else:
