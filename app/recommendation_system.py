@@ -1,5 +1,6 @@
 import re
 import os
+import gc
 import nltk
 import hashlib
 from nltk.corpus import stopwords
@@ -56,7 +57,7 @@ class recommendation_system:
             for j in range(len(data[i])):
                 data[i][j] = re.sub(r'\W+', '', data[i][j])
             #stopword removed
-            data[i] = [w for w in data[i] if w not in stop_words]
+            data[i] = [w.lower() for w in data[i] if w not in stop_words]
             #lemmatized
             data[i] = [lem.lemmatize(w) for w in data[i]]
         
@@ -97,21 +98,23 @@ class recommendation_system:
         Helper function for generate_permutation_matrix
         """
         a = np.arange(array_size)
-        np.random.shuffle(a)
-        return a
+        b = np.arange(array_size)
+        np.random.shuffle(b)
+        paired = list(zip(a, b))
+        return b
 
 
     def generate_permutation_matrix(self):
         """
         Creates permutation matrix, with rows as permutations of length equal to number of total shingles.
         """
-        pm = np.full((self.permutations, self.shingle_count), np.nan)
-        for row_id in range(self.permutations):
-            pm[row_id] = self.perm_array(self.shingle_count)
+        pm = list()
+        for i in range(self.permutations):
+            pm.append(self.perm_array(self.shingle_count))
         
         pm = pd.DataFrame(pm)
 
-        #print(self.permutation_matrix)
+        print(pm)
         print("Permutation Matrix Generated")
         return pm
 
@@ -129,8 +132,9 @@ class recommendation_system:
                         columns=mlb.classes_,
                         index=pd_data.index)
 
-        #print(res)
+        print(res)
         print("One-Hot Encoding Complete")
+        gc.collect()
         return res
 
     #use minhashing to permute data into a signature matrix
@@ -153,15 +157,16 @@ class recommendation_system:
         self.one_hot = self.one_hot_encode()
         self.perm_matrix = self.generate_permutation_matrix()
         
-        for doc_id in range(self.doc_count):
-            for perm_id, perm_row in self.perm_matrix.iterrows():
-                shingle_index = perm_row[doc_id]
-                for shingle_col in self.one_hot.columns:
-                    if self.one_hot.at[doc_id, shingle_col] == 1:
-                        self.signature_matrix.at[perm_id, doc_id] = shingle_index
+        for xdoc_id in range(self.doc_count):
+            for perm_index, perm_row in self.perm_matrix.iterrows():
+                for c in range(self.shingle_count):
+                    p = perm_row[c]
+                    if self.one_hot.iloc[xdoc_id, p] == 1:
+                        self.signature_matrix.at[perm_index, xdoc_id] = p
                         break
         self.signature_matrix = self.signature_matrix.astype(int)
         print(self.signature_matrix)
+        gc.collect()
         print("Minhashing processing complete, proceed to LSH.")
 
 
@@ -237,11 +242,12 @@ class recommendation_system:
         #create a mini permutation matrix
         signature_list = np.full((self.permutations), 0)
 
-        for i in range(self.permutations):
-            for j in range(self.shingle_count):
-                s = np.where(np.isclose(self.permutation_matrix[i], j))[0][0]
-                if one_hot_encoded_list[s] == 1:
-                    signature_list[i] = self.permutation_matrix[i, s]
+        for perm_id, perm_row in self.perm_matrix.iterrows():
+                shingle_index = perm_row[doc_id]
+                for shingle_col in self.one_hot.columns:
+                    if self.one_hot.at[doc_id, shingle_col] == 1:
+                        signature_list[perm_id] = shingle_index
+                        break
         
         #apply lsh and hash into lsh_buckets dictionary
         lsh_keys = set()
