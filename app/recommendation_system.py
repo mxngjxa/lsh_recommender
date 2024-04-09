@@ -201,7 +201,8 @@ class recommendation_system:
 
             for band_index in range(self.b):
                 start = band_index * self.r
-                band_key = hashlib.sha256("".join([str(line) for line in signature_array[start:start + self.r]]).encode('utf-8')).hexdigest()
+                band_key = hashlib.sha256("".join([str(line) for line in signature_array[start:start + self.r]])\
+                    .encode('utf-8')).hexdigest()
                 if band_key in self.lsh_buckets.keys():
                     self.lsh_buckets[band_key].add(doc_group)
                 else:
@@ -242,19 +243,20 @@ class recommendation_system:
         #create a mini permutation matrix
         signature_list = np.full((self.permutations), 0)
 
-        for perm_id, perm_row in self.perm_matrix.iterrows():
-                shingle_index = perm_row[doc_id]
-                for shingle_col in self.one_hot.columns:
-                    if self.one_hot.at[doc_id, shingle_col] == 1:
-                        signature_list[perm_id] = shingle_index
-                        break
+        for perm_index, perm_row in self.perm_matrix.iterrows():
+            for c in range(self.shingle_count):
+                p = perm_row[c]
+                if one_hot_encoded_list[p] == 1:
+                    signature_list[perm_index] = p
+                    break
         
         #apply lsh and hash into lsh_buckets dictionary
         lsh_keys = set()
 
         for band_index in range(self.b):
             start = band_index * self.r
-            band_key = hashlib.sha256(b"".join([line for line in signature_list[start:start + self.r]])).hexdigest()
+            band_key = hashlib.sha256("".join([str(line) for line in signature_list[start:start + self.r]])\
+                .encode('utf-8')).hexdigest()
             lsh_keys.add(band_key)
         print(lsh_keys)
         
