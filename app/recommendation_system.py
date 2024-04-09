@@ -98,10 +98,8 @@ class recommendation_system:
         Helper function for generate_permutation_matrix
         """
         a = np.arange(array_size)
-        b = np.arange(array_size)
-        np.random.shuffle(b)
-        paired = list(zip(a, b))
-        return b
+        np.random.shuffle(a)
+        return a
 
 
     def generate_permutation_matrix(self):
@@ -132,7 +130,7 @@ class recommendation_system:
                         columns=mlb.classes_,
                         index=pd_data.index)
 
-        print(res)
+        #print(res)
         print("One-Hot Encoding Complete")
         gc.collect()
         return res
@@ -165,7 +163,7 @@ class recommendation_system:
                         self.signature_matrix.at[perm_index, xdoc_id] = p
                         break
         self.signature_matrix = self.signature_matrix.astype(int)
-        print(self.signature_matrix)
+        #print(self.signature_matrix)
         gc.collect()
         print("Minhashing processing complete, proceed to LSH.")
 
