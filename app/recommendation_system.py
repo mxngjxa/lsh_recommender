@@ -33,16 +33,19 @@ class recommendation_system:
 
     def __repr__(self):
         if not hasattr(self, 'preprocessed') or self.preprocessed is None:
-            return f"Raw text of length {len(self.raw_data)}. Awaiting preprocessing."
+            return f"Recommendation system initialized. Raw text of length {len(self.raw_data)}. Waiting for preprocessing."
         elif not hasattr(self, 'shingled') or self.shingled is None:
-            return f"Preprocessed text of length {len(self.preprocessed)}. Awaiting shingling."
+            return f"Text preprocessed. Preprocessed text of length {len(self.preprocessed)}. Awaiting shingling."
         elif not hasattr(self, 'signature_matrix') or self.signature_matrix is None:
-            return f"Shingled into {self.k}-token shingles. Awaiting MinHash indexing."
+            return f"Text shingled into {self.k}-token shingles. Awaiting MinHash indexing."
         elif not hasattr(self, 'lsh_buckets') or self.lsh_buckets is None:
-            return f"MinHash indexed with {self.permutations} permutations. Awaiting Locality Sensitive Hashing (LSH)."
+            return f"Text indexed using MinHash with {self.permutations} permutations. Awaiting Locality Sensitive Hashing (LSH)."
         else:
-            return f"Text preprocessed, shingled into {self.k}-token shingles, indexed using MinHash with {self.permutations} permutations, and ready for querying with LSH using {self.b} bands and {self.r} rows per band."
-
+            return f"""
+                Recommendation system fully initialized. Text preprocessed, shingled into {self.k}-token shingles, 
+                indexed using MinHash with {self.permutations} permutations, and ready for querying with LSH 
+                using {self.b} bands and {self.r} rows per band."
+            """
 
     #clean, remove stopwords, and lemmatize data
     def preprocess(self):
@@ -151,13 +154,17 @@ class recommendation_system:
         #generate signature matrix and correct type
         self.signature_matrix = pd.DataFrame(index=range(self.permutations), columns=range(self.doc_count))
 
-
+        #generate one hot and permutation matrices
         self.one_hot = self.one_hot_encode()
         self.perm_matrix = self.generate_permutation_matrix()
         
+        #loop through documents
         for xdoc_id in range(self.doc_count):
+            #loop through each row of the permutation matrix
             for perm_index, perm_row in self.perm_matrix.iterrows():
+                #get the shingle locations in order
                 for c in range(self.shingle_count):
+                    #set the current permutation to shingle 
                     p = perm_row[c]
                     if self.one_hot.iloc[xdoc_id, p] == 1:
                         self.signature_matrix.at[perm_index, xdoc_id] = p
