@@ -158,6 +158,8 @@ class recommendation_system:
         self.one_hot = self.one_hot_encode()
         self.perm_matrix = self.generate_permutation_matrix()
 
+	self.one_hot = pd.DataFrame(self.one_hot.toarray())
+
         # Iterate over permutations
         for xdoc_id in range(self.doc_count):
             #loop through each row of the permutation matrix
