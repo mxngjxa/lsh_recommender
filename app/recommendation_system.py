@@ -159,18 +159,16 @@ class recommendation_system:
         self.perm_matrix = self.generate_permutation_matrix()
 
         # Iterate over permutations
-        for perm_index, perm_row in self.perm_matrix.iterrows():
-            # Get the shingles present in this permutation
-            shingles = perm_row.values
-            # Find the documents that have any of the shingles
-            docs_with_shingle = np.unique(self.one_hot[:, shingles].nonzero()[0])
-            # Update signature matrix for each matching document
-            for doc_id in docs_with_shingle:
-                # Check if any shingle from the permutation is present in the document
-                matching_shingles = np.intersect1d(shingles, self.one_hot[doc_id].nonzero()[1])
-                # If there are matching shingles, update the signature matrix
-                if matching_shingles.size > 0:
-                    self.signature_matrix.at[perm_index, doc_id] = matching_shingles[0]
+        for xdoc_id in range(self.doc_count):
+            #loop through each row of the permutation matrix
+            for perm_index, perm_row in self.perm_matrix.iterrows():
+                #get the shingle locations in order
+                for c in range(self.shingle_count):
+                    #set the current permutation to shingle 
+                    p = perm_row[c]
+                    if self.one_hot.iloc[xdoc_id, p] == 1:
+                        self.signature_matrix.at[perm_index, xdoc_id] = p
+                        break
 
         self.signature_matrix = self.signature_matrix.astype(int)
         #print(self.signature_matrix)
@@ -339,5 +337,5 @@ def main():
     print(rec_sys.lsh_buckets)
 
 if __name__ == "__main__":
-    #main()
-    pass
+    main()
+    #pass
