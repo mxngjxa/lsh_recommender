@@ -158,7 +158,7 @@ class recommendation_system:
         self.one_hot = self.one_hot_encode()
         self.perm_matrix = self.generate_permutation_matrix()
 
-	self.one_hot = pd.DataFrame(self.one_hot.toarray())
+        self.one_hot = pd.DataFrame(self.one_hot.toarray())
 
         # Iterate over permutations
         for xdoc_id in range(self.doc_count):
@@ -269,9 +269,10 @@ class recommendation_system:
         print(lsh_keys)
 
         # Find candidates using LSH
-        candidates = self.find_candidates(lsh_keys)[0:topk]
+        candidates = self.find_candidates(lsh_keys)
+        topk_candidates = dict(candidates.items()[:topk])
         # Return topK most similar articles
-        return candidates
+        return topk_candidates
 
 
     #after querying, find the most likely candidtates the queried text would fit into.
@@ -291,7 +292,7 @@ class recommendation_system:
                         candidates[item] += 1
 
         # Sort the candidates in descending order
-        sorted_candidates = sorted(list(candidates.items()), key=lambda x: x[1], reverse=True)
+        sorted_candidates = dict(sorted(candidates.items(), key=lambda item: item[1]))
 
         return sorted_candidates
 
