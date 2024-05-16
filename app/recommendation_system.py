@@ -157,23 +157,23 @@ class recommendation_system:
 
         self.one_hot = self.one_hot_encode()
         self.perm_matrix = self.generate_permutation_matrix()
-
-        self.one_hot = pd.DataFrame(self.one_hot.toarray())
+        
+        # Convert one_hot to a numpy array for faster processing
+        one_hot_np = self.one_hot.toarray()
 
         # Iterate over permutations
         for xdoc_id in range(self.doc_count):
-            #loop through each row of the permutation matrix
+            # Get the positions of ones in the one-hot encoded matrix for the current document
+            ones_positions = np.where(one_hot_np[xdoc_id] == 1)[0]
             for perm_index, perm_row in self.perm_matrix.iterrows():
-                #get the shingle locations in order
-                for c in range(self.shingle_count):
-                    #set the current permutation to shingle 
-                    p = perm_row[c]
-                    if self.one_hot.iloc[xdoc_id, p] == 1:
-                        self.signature_matrix.at[perm_index, xdoc_id] = p
-                        break
+                # Get the shingle locations in order
+                perm_row_filtered = perm_row[ones_positions]
+                min_perm = perm_row_filtered.min()
+                self.signature_matrix.at[perm_index, xdoc_id] = min_perm
 
         self.signature_matrix = self.signature_matrix.astype(int)
-        #print(self.signature_matrix)
+        # Print the signature matrix
+        # print(self.signature_matrix)
         gc.collect()
         print("Minhashing processing complete, proceed to LSH.")
 
