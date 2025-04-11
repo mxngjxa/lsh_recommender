@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 DESCRIPTION = 'LSH Recommendation System Package'
 LONG_DESCRIPTION = 'A Python package implementing a Locality Sensitive Hashing (LSH) recommendation system.'
 
